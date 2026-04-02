@@ -46,21 +46,13 @@
     <div id="map"></div>
 
     <script>
-        // =========================
-        // 1) Crear mapa
-        // =========================
         const map = L.map('map').setView([54.5, 15.0], 4);
 
-        // Base SIN nombres
-        // Leaflet muestra el uso de Carto "light_nolabels" para este tipo de mapas.
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap &copy; CARTO'
         }).addTo(map);
 
-        // =========================
-        // 2) Datos de capitales en español
-        // =========================
         const paises = [
             { nombre: "Francia", capital: "París", lat: 48.8566, lon: 2.3522 },
             { nombre: "Alemania", capital: "Berlín", lat: 52.5200, lon: 13.4050 },
@@ -84,73 +76,18 @@
             { nombre: "Croacia", capital: "Zagreb", lat: 45.8150, lon: 15.9819 }
         ];
 
-        // Índice rápido país -> capital
-        const capitalesPorPais = {};
-        paises.forEach(p => {
-            capitalesPorPais[p.nombre.toLowerCase()] = p.capital;
-        });
-
-        // =========================
-        // 3) Marcadores rojos para capitales
-        // =========================
-        paises.forEach(function(pais) {
-            const marcador = L.circleMarker([pais.lat, pais.lon], {
-                radius: 6,
-                color: '#b30000',
-                fillColor: '#ff2d2d',
-                fillOpacity: 0.9,
-                weight: 1.5
-            }).addTo(map);
-
-            marcador.bindPopup(`
-                <b>${pais.capital}</b><br>
-                Capital de ${pais.nombre}
-            `);
-        });
-
-        // =========================
-        // 4) Caja informativa
-        // =========================
         const infoBox = L.control({ position: 'topright' });
-
         infoBox.onAdd = function() {
             const div = L.DomUtil.create('div', 'info-box');
             div.innerHTML = `
                 <b>Instrucciones</b><br>
-                • Haz clic en un país para ver su nombre.<br>
-                • Haz clic en un punto rojo para ver la capital.
+                • Pasa el mouse sobre un país para resaltarlo.<br>
+                • Haz clic en un país para seleccionarlo.<br>
+                • Haz clic en un punto rojo para ver la capital y marcarla.
             `;
             return div;
         };
-
         infoBox.addTo(map);
-
-        // =========================
-        // 5) Estilo de países
-        // =========================
-        function estiloPais() {
-            return {
-                color: '#333',       // borde más oscuro
-                weight: 1.2,
-                fillColor: '#dfe8f5', // relleno suave
-                fillOpacity: 0.35
-            };
-        }
-
-        function resaltarFeature(e) {
-            const layer = e.target;
-            layer.setStyle({
-                weight: 2,
-                color: '#111',
-                fillColor: '#a8c4e6',
-                fillOpacity: 0.55
-            });
-            layer.bringToFront();
-        }
-
-        function resetearResaltado(e) {
-            geojsonLayer.resetStyle(e.target);
-        }
 
         function nombrePaisEnEspanol(nombreOriginal) {
             const mapaNombres = {
@@ -199,6 +136,124 @@
             return mapaNombres[nombreOriginal] || nombreOriginal;
         }
 
+        // =========================
+        // ESTILOS DE PAISES
+        // =========================
+        function estiloNormalPais() {
+            return {
+                color: '#4a4a4a',
+                weight: 1.2,
+                fillColor: '#f2f5f9',
+                fillOpacity: 0.45
+            };
+        }
+
+        function estiloHoverPais() {
+            return {
+                color: '#1f1f1f',
+                weight: 2,
+                fillColor: '#8ec5ff',
+                fillOpacity: 0.75
+            };
+        }
+
+        function estiloSeleccionadoPais() {
+            return {
+                color: '#0d3b66',
+                weight: 2.5,
+                fillColor: '#4dabf7',
+                fillOpacity: 0.85
+            };
+        }
+
+        // =========================
+        // ESTILOS DE CAPITALES
+        // =========================
+        function estiloNormalCapital() {
+            return {
+                radius: 6,
+                color: '#990000',
+                fillColor: '#ff2d2d',
+                fillOpacity: 0.9,
+                weight: 1.5
+            };
+        }
+
+        function estiloHoverCapital() {
+            return {
+                radius: 7,
+                color: '#7a3d00',
+                fillColor: '#ffb347',
+                fillOpacity: 1,
+                weight: 2
+            };
+        }
+
+        function estiloSeleccionadaCapital() {
+            return {
+                radius: 7,
+                color: '#0b5d1e',
+                fillColor: '#2ecc71',
+                fillOpacity: 1,
+                weight: 2
+            };
+        }
+
+        let geojsonLayer;
+        let paisSeleccionado = null;
+
+        // Para guardar marcadores por nombre de país
+        const marcadoresCapitales = {};
+
+        // =========================
+        // CAPITALES
+        // =========================
+        paises.forEach(function(pais) {
+            const marcador = L.circleMarker([pais.lat, pais.lon], estiloNormalCapital()).addTo(map);
+
+            marcador.capitalSeleccionada = false;
+
+            marcador.bindPopup(`
+                <b>${pais.capital}</b><br>
+                Capital de ${pais.nombre}
+            `);
+
+            marcador.on('mouseover', function() {
+                if (!this.capitalSeleccionada) {
+                    this.setStyle(estiloHoverCapital());
+                }
+            });
+
+            marcador.on('mouseout', function() {
+                if (!this.capitalSeleccionada) {
+                    this.setStyle(estiloNormalCapital());
+                }
+            });
+
+            marcador.on('click', function() {
+                this.capitalSeleccionada = !this.capitalSeleccionada;
+
+                if (this.capitalSeleccionada) {
+                    this.setStyle(estiloSeleccionadaCapital());
+                } else {
+                    this.setStyle(estiloNormalCapital());
+                }
+
+                this.openPopup();
+            });
+
+            marcadoresCapitales[pais.nombre.toLowerCase()] = marcador;
+        });
+
+        // =========================
+        // PAISES
+        // =========================
+        function resetearEstiloPais(layer) {
+            if (layer !== paisSeleccionado) {
+                layer.setStyle(estiloNormalPais());
+            }
+        }
+
         function onEachCountry(feature, layer) {
             const nombreOriginal =
                 feature.properties.name ||
@@ -208,28 +263,39 @@
 
             const nombreEs = nombrePaisEnEspanol(nombreOriginal);
 
-            layer.on({
-                mouseover: resaltarFeature,
-                mouseout: resetearResaltado,
-                click: function() {
-                    layer.bindPopup(`<b>País:</b> ${nombreEs}`).openPopup();
+            layer.nombreEs = nombreEs;
+
+            layer.on('mouseover', function() {
+                if (layer !== paisSeleccionado) {
+                    layer.setStyle(estiloHoverPais());
                 }
+            });
+
+            layer.on('mouseout', function() {
+                resetearEstiloPais(layer);
+            });
+
+            layer.on('click', function() {
+                // Quitar selección anterior
+                if (paisSeleccionado && paisSeleccionado !== layer) {
+                    paisSeleccionado.setStyle(estiloNormalPais());
+                }
+
+                // Seleccionar actual
+                paisSeleccionado = layer;
+                layer.setStyle(estiloSeleccionadoPais());
+
+                layer.bindPopup(`<b>País:</b> ${nombreEs}`).openPopup();
             });
         }
 
-        // =========================
-        // 6) Cargar GeoJSON de Europa
-        // =========================
-        // Puedes cambiar esta URL por un archivo local si quieres más control.
         const geojsonURL = 'https://raw.githubusercontent.com/GeoGuess/GeoGuess-Maps/main/public/geojson/maps/regions/europe.geojson';
-
-        let geojsonLayer;
 
         fetch(geojsonURL)
             .then(response => response.json())
             .then(data => {
                 geojsonLayer = L.geoJSON(data, {
-                    style: estiloPais,
+                    style: estiloNormalPais,
                     onEachFeature: onEachCountry
                 }).addTo(map);
             })
