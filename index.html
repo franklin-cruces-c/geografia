@@ -58,25 +58,32 @@
         }
 
         .country-label {
-            background: rgba(255,255,255,0.9);
-            border: 1px solid #666;
-            border-radius: 4px;
-            padding: 2px 6px;
+            background: transparent;
+            border: none;
+            padding: 0;
             font-size: 12px;
             font-weight: bold;
             color: #222;
             box-shadow: none;
+            text-shadow: 1px 1px 2px white, 0 0 3px white;
+            white-space: nowrap;
         }
 
         .capital-label {
-            background: rgba(255,245,245,0.95);
-            border: 1px solid #aa3333;
-            border-radius: 4px;
-            padding: 2px 6px;
+            background: transparent;
+            border: none;
+            padding: 0;
             font-size: 12px;
             font-weight: bold;
             color: #8a0000;
             box-shadow: none;
+            text-shadow: 1px 1px 2px white, 0 0 3px white;
+            white-space: nowrap;
+        }
+
+        .leaflet-div-icon {
+            background: transparent !important;
+            border: none !important;
         }
 
         .leaflet-popup-content {
@@ -305,7 +312,8 @@
                 interactive: false,
                 icon: L.divIcon({
                     className: 'capital-label',
-                    html: pais.capital
+                    html: pais.capital,
+                    iconSize: null
                 })
             });
 
@@ -354,20 +362,19 @@
 
             countryLayers.push(layer);
 
-            if (feature.geometry && feature.geometry.type) {
-                const centro = layer.getBounds().getCenter();
+            const centro = layer.getBounds().getCenter();
 
-                const label = L.marker(centro, {
-                    pane: 'labelsPane',
-                    interactive: false,
-                    icon: L.divIcon({
-                        className: 'country-label',
-                        html: nombreEs
-                    })
-                });
+            const label = L.marker(centro, {
+                pane: 'labelsPane',
+                interactive: false,
+                icon: L.divIcon({
+                    className: 'country-label',
+                    html: nombreEs,
+                    iconSize: null
+                })
+            });
 
-                countryLabels.push(label);
-            }
+            countryLabels.push(label);
         }
 
         const geojsonURL = 'https://raw.githubusercontent.com/GeoGuess/GeoGuess-Maps/main/public/geojson/maps/regions/europe.geojson';
@@ -404,7 +411,7 @@
             countryLabels.forEach(label => {
                 if (mostrarNombresPaises) {
                     label.addTo(map);
-                } else {
+                } else if (map.hasLayer(label)) {
                     map.removeLayer(label);
                 }
             });
@@ -419,7 +426,7 @@
             capitalLabels.forEach(label => {
                 if (mostrarNombresCapitales) {
                     label.addTo(map);
-                } else {
+                } else if (map.hasLayer(label)) {
                     map.removeLayer(label);
                 }
             });
