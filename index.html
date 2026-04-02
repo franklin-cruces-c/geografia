@@ -53,6 +53,10 @@
             attribution: '&copy; OpenStreetMap &copy; CARTO'
         }).addTo(map);
 
+        // PANE para que las capitales siempre queden por encima de los países
+        map.createPane('capitalesPane');
+        map.getPane('capitalesPane').style.zIndex = 650;
+
         const paises = [
             { nombre: "Francia", capital: "París", lat: 48.8566, lon: 2.3522 },
             { nombre: "Alemania", capital: "Berlín", lat: 52.5200, lon: 13.4050 },
@@ -82,8 +86,8 @@
             div.innerHTML = `
                 <b>Instrucciones</b><br>
                 • Pasa el mouse sobre un país para resaltarlo.<br>
-                • Haz clic en un país para seleccionarlo.<br>
-                • Haz clic en un punto rojo para ver la capital y marcarla.
+                • Haz clic en un país para seleccionarlo o deseleccionarlo.<br>
+                • Haz clic en un punto rojo para marcar una capital.
             `;
             return div;
         };
@@ -137,7 +141,7 @@
         }
 
         // =========================
-        // ESTILOS DE PAISES
+        // ESTILOS PAISES
         // =========================
         function estiloNormalPais() {
             return {
@@ -167,20 +171,22 @@
         }
 
         // =========================
-        // ESTILOS DE CAPITALES
+        // ESTILOS CAPITALES
         // =========================
         function estiloNormalCapital() {
             return {
+                pane: 'capitalesPane',
                 radius: 6,
                 color: '#990000',
                 fillColor: '#ff2d2d',
-                fillOpacity: 0.9,
+                fillOpacity: 0.95,
                 weight: 1.5
             };
         }
 
         function estiloHoverCapital() {
             return {
+                pane: 'capitalesPane',
                 radius: 7,
                 color: '#7a3d00',
                 fillColor: '#ffb347',
@@ -191,6 +197,7 @@
 
         function estiloSeleccionadaCapital() {
             return {
+                pane: 'capitalesPane',
                 radius: 7,
                 color: '#0b5d1e',
                 fillColor: '#2ecc71',
@@ -198,12 +205,6 @@
                 weight: 2
             };
         }
-
-        let geojsonLayer;
-        let paisSeleccionado = null;
-
-        // Para guardar marcadores por nombre de país
-        const marcadoresCapitales = {};
 
         // =========================
         // CAPITALES
@@ -230,7 +231,9 @@
                 }
             });
 
-            marcador.on('click', function() {
+            marcador.on('click', function(e) {
+                L.DomEvent.stopPropagation(e);
+
                 this.capitalSeleccionada = !this.capitalSeleccionada;
 
                 if (this.capitalSeleccionada) {
@@ -241,19 +244,11 @@
 
                 this.openPopup();
             });
-
-            marcadoresCapitales[pais.nombre.toLowerCase()] = marcador;
         });
 
         // =========================
         // PAISES
         // =========================
-        function resetearEstiloPais(layer) {
-            if (layer !== paisSeleccionado) {
-                layer.setStyle(estiloNormalPais());
-            }
-        }
-
         function onEachCountry(feature, layer) {
             const nombreOriginal =
                 feature.properties.name ||
@@ -264,26 +259,32 @@
             const nombreEs = nombrePaisEnEspanol(nombreOriginal);
 
             layer.nombreEs = nombreEs;
+            layer.seleccionado = false;
+
+            layer.setStyle(estiloNormalPais());
 
             layer.on('mouseover', function() {
-                if (layer !== paisSeleccionado) {
+                if (!layer.seleccionado) {
                     layer.setStyle(estiloHoverPais());
                 }
             });
 
             layer.on('mouseout', function() {
-                resetearEstiloPais(layer);
+                if (!layer.seleccionado) {
+                    layer.setStyle(estiloNormalPais());
+                }
             });
 
-            layer.on('click', function() {
-                // Quitar selección anterior
-                if (paisSeleccionado && paisSeleccionado !== layer) {
-                    paisSeleccionado.setStyle(estiloNormalPais());
-                }
+            layer.on('click', function(e) {
+                L.DomEvent.stopPropagation(e);
 
-                // Seleccionar actual
-                paisSeleccionado = layer;
-                layer.setStyle(estiloSeleccionadoPais());
+                layer.seleccionado = !layer.seleccionado;
+
+                if (layer.seleccionado) {
+                    layer.setStyle(estiloSeleccionadoPais());
+                } else {
+                    layer.setStyle(estiloNormalPais());
+                }
 
                 layer.bindPopup(`<b>País:</b> ${nombreEs}`).openPopup();
             });
@@ -294,7 +295,7 @@
         fetch(geojsonURL)
             .then(response => response.json())
             .then(data => {
-                geojsonLayer = L.geoJSON(data, {
+                L.geoJSON(data, {
                     style: estiloNormalPais,
                     onEachFeature: onEachCountry
                 }).addTo(map);
