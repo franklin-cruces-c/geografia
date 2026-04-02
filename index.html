@@ -1,58 +1,119 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Map of Europe</title>
+    <title>Mapa Interactivo de Europa</title>
     <style>
-        body { font-family: Arial, sans-serif; }
-        #map { width: 100%; height: 600px; }
-        .marker { 
-            background-color: red;
-            border-radius: 50%;
-            width: 10px;
-            height: 10px;
-            position: absolute;
-            transform: translate(-50%, -50%);
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0;
+            padding: 0;
+        }
+        #map { 
+            width: 100%; 
+            height: 600px; 
+        }
+        h1 {
+            margin: 10px;
+            color: #333;
         }
     </style>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
 </head>
 <body>
-    <h1>Interactive Map of Europe</h1>
+    <h1>Mapa Político de Europa</h1>
     <div id="map"></div>
     <script>
-        var map = L.map('map').setView([48.8566, 2.3522], 4);  // Centered on Europe
+        var map = L.map('map').setView([54.5260, 15.2551], 4);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '© OpenStreetMap'
         }).addTo(map);
 
-        // Countries and capitals data
-        var locations = [
-            { name: "France", capital: "Paris", lat: 48.8566, lon: 2.3522 },
-            { name: "Germany", capital: "Berlin", lat: 52.5200, lon: 13.4050 },
-            { name: "Italy", capital: "Rome", lat: 41.9028, lon: 12.4964 },
-            { name: "Spain", capital: "Madrid", lat: 40.4168, lon: -3.7038 },
-            { name: "United Kingdom", capital: "London", lat: 51.5074, lon: -0.1278 },
-            { name: "Poland", capital: "Warsaw", lat: 52.2297, lon: 21.0122 },
-            { name: "Netherlands", capital: "Amsterdam", lat: 52.3676, lon: 4.9041 },
-            { name: "Belgium", capital: "Brussels", lat: 50.8503, lon: 4.3517 },
-            { name: "Austria", capital: "Vienna", lat: 48.2082, lon: 16.3738 },
-            { name: "Sweden", capital: "Stockholm", lat: 59.3293, lon: 18.0686 },
-            //... Add other countries and capitals as needed
+        // Datos de países y capitales en español
+        var paises = [
+            { nombre: "Francia", capital: "París", lat: 48.8566, lon: 2.3522 },
+            { nombre: "Alemania", capital: "Berlín", lat: 52.5200, lon: 13.4050 },
+            { nombre: "Italia", capital: "Roma", lat: 41.9028, lon: 12.4964 },
+            { nombre: "España", capital: "Madrid", lat: 40.4168, lon: -3.7038 },
+            { nombre: "Reino Unido", capital: "Londres", lat: 51.5074, lon: -0.1278 },
+            { nombre: "Polonia", capital: "Varsovia", lat: 52.2297, lon: 21.0122 },
+            { nombre: "Países Bajos", capital: "Ámsterdam", lat: 52.3676, lon: 4.9041 },
+            { nombre: "Bélgica", capital: "Bruselas", lat: 50.8503, lon: 4.3517 },
+            { nombre: "Austria", capital: "Viena", lat: 48.2082, lon: 16.3738 },
+            { nombre: "Suecia", capital: "Estocolmo", lat: 59.3293, lon: 18.0686 },
+            { nombre: "Noruega", capital: "Oslo", lat: 59.9139, lon: 10.7522 },
+            { nombre: "Dinamarca", capital: "Copenhague", lat: 55.6761, lon: 12.5683 },
+            { nombre: "Finlandia", capital: "Helsinki", lat: 60.1695, lon: 24.9354 },
+            { nombre: "Grecia", capital: "Atenas", lat: 37.9838, lon: 23.7275 },
+            { nombre: "Portugal", capital: "Lisboa", lat: 38.7223, lon: -9.1393 },
+            { nombre: "República Checa", capital: "Praga", lat: 50.0755, lon: 14.4378 },
+            { nombre: "Hungría", capital: "Budapest", lat: 47.4979, lon: 19.0402 },
+            { nombre: "Rumania", capital: "Bucarest", lat: 44.4268, lon: 26.1025 },
+            { nombre: "Bulgaria", capital: "Sofía", lat: 42.6977, lon: 23.3219 },
+            { nombre: "Croacia", capital: "Zagreb", lat: 45.8150, lon: 15.9819 },
         ];
 
-        // Add markers for each country and capital
-        locations.forEach(function(location) {
-            var marker = L.circleMarker([location.lat, location.lon], { radius: 10, color: 'red' }).addTo(map);
-            marker.bindPopup('<b>' + location.name + '</b><br>Capital: ' + location.capital);
-            marker.on('click', function() {
-                alert(location.name);
+        // Agregar marcadores para cada país
+        paises.forEach(function(pais) {
+            // Marcador rojo para las capitales
+            var marcador = L.circleMarker([pais.lat, pais.lon], { 
+                radius: 8, 
+                color: 'red',
+                fillColor: 'red',
+                fillOpacity: 0.8,
+                weight: 2
+            }).addTo(map);
+
+            // Al hacer clic en el marcador (puntito), mostrar la capital
+            marcador.bindPopup('<b>Capital: ' + pais.capital + '</b>');
+            
+            marcador.on('click', function() {
+                this.openPopup();
             });
+        });
+
+        // Variable para almacenar el control de búsqueda por área
+        var infoBox = L.control();
+        infoBox.onAdd = function(map) {
+            this._div = L.DomUtil.create('div', 'info-box');
+            this._div.style.backgroundColor = 'white';
+            this._div.style.padding = '10px';
+            this._div.style.borderRadius = '5px';
+            this._div.style.boxShadow = '0 0 15px rgba(0,0,0,0.2)';
+            this._div.style.position = 'absolute';
+            this._div.style.top = '80px';
+            this._div.style.right = '10px';
+            this._div.style.zIndex = '1000';
+            this._div.innerHTML = '<b>Haz clic en los puntitos rojos</b><br>para ver las capitales';
+            return this._div;
+        };
+        infoBox.addTo(map);
+
+        // Detectar cuando se hace clic en el mapa para mostrar el país
+        map.on('click', function(e) {
+            var lat = e.latlng.lat;
+            var lon = e.latlng.lng;
+            
+            // Encontrar el país más cercano
+            var paisMasCercano = null;
+            var distanciaMinima = Infinity;
+            
+            paises.forEach(function(pais) {
+                var distancia = Math.sqrt(Math.pow(pais.lat - lat, 2) + Math.pow(pais.lon - lon, 2));
+                if (distancia < distanciaMinima) {
+                    distanciaMinima = distancia;
+                    paisMasCercano = pais;
+                }
+            });
+            
+            // Mostrar el país más cercano si está dentro de un rango razonable
+            if (distanciaMinima < 5) {
+                alert('País: ' + paisMasCercano.nombre);
+            }
         });
     </script>
 </body>
