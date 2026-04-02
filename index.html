@@ -23,6 +23,27 @@
             color: #333;
         }
 
+        #controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 10px;
+        }
+
+        #controls button {
+            padding: 10px 14px;
+            border: none;
+            border-radius: 6px;
+            background: #2d6cdf;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #controls button:hover {
+            background: #1d56b3;
+        }
+
         #map {
             width: 100%;
             height: 650px;
@@ -36,6 +57,28 @@
             line-height: 1.4;
         }
 
+        .country-label {
+            background: rgba(255,255,255,0.9);
+            border: 1px solid #666;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #222;
+            box-shadow: none;
+        }
+
+        .capital-label {
+            background: rgba(255,245,245,0.95);
+            border: 1px solid #aa3333;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #8a0000;
+            box-shadow: none;
+        }
+
         .leaflet-popup-content {
             font-size: 14px;
         }
@@ -43,6 +86,13 @@
 </head>
 <body>
     <h1>Mapa Político de Europa</h1>
+
+    <div id="controls">
+        <button id="btnReset">Reiniciar selección</button>
+        <button id="btnPaises">Mostrar nombres de países</button>
+        <button id="btnCapitales">Mostrar capitales</button>
+    </div>
+
     <div id="map"></div>
 
     <script>
@@ -53,9 +103,11 @@
             attribution: '&copy; OpenStreetMap &copy; CARTO'
         }).addTo(map);
 
-        // PANE para que las capitales siempre queden por encima de los países
         map.createPane('capitalesPane');
         map.getPane('capitalesPane').style.zIndex = 650;
+
+        map.createPane('labelsPane');
+        map.getPane('labelsPane').style.zIndex = 700;
 
         const paises = [
             { nombre: "Francia", capital: "París", lat: 48.8566, lon: 2.3522 },
@@ -87,7 +139,8 @@
                 <b>Instrucciones</b><br>
                 • Pasa el mouse sobre un país para resaltarlo.<br>
                 • Haz clic en un país para seleccionarlo o deseleccionarlo.<br>
-                • Haz clic en un punto rojo para marcar una capital.
+                • Haz clic en un punto rojo para marcar una capital.<br>
+                • Usa los botones para mostrar nombres o reiniciar.
             `;
             return div;
         };
@@ -140,9 +193,6 @@
             return mapaNombres[nombreOriginal] || nombreOriginal;
         }
 
-        // =========================
-        // ESTILOS PAISES
-        // =========================
         function estiloNormalPais() {
             return {
                 color: '#4a4a4a',
@@ -170,9 +220,6 @@
             };
         }
 
-        // =========================
-        // ESTILOS CAPITALES
-        // =========================
         function estiloNormalCapital() {
             return {
                 pane: 'capitalesPane',
@@ -206,13 +253,19 @@
             };
         }
 
-        // =========================
-        // CAPITALES
-        // =========================
+        const countryLayers = [];
+        const capitalMarkers = [];
+        const countryLabels = [];
+        const capitalLabels = [];
+
+        let mostrarNombresPaises = false;
+        let mostrarNombresCapitales = false;
+
         paises.forEach(function(pais) {
             const marcador = L.circleMarker([pais.lat, pais.lon], estiloNormalCapital()).addTo(map);
 
             marcador.capitalSeleccionada = false;
+            marcador.datosPais = pais;
 
             marcador.bindPopup(`
                 <b>${pais.capital}</b><br>
@@ -244,11 +297,21 @@
 
                 this.openPopup();
             });
+
+            capitalMarkers.push(marcador);
+
+            const capitalLabel = L.marker([pais.lat, pais.lon], {
+                pane: 'labelsPane',
+                interactive: false,
+                icon: L.divIcon({
+                    className: 'capital-label',
+                    html: pais.capital
+                })
+            });
+
+            capitalLabels.push(capitalLabel);
         });
 
-        // =========================
-        // PAISES
-        // =========================
         function onEachCountry(feature, layer) {
             const nombreOriginal =
                 feature.properties.name ||
@@ -288,6 +351,23 @@
 
                 layer.bindPopup(`<b>País:</b> ${nombreEs}`).openPopup();
             });
+
+            countryLayers.push(layer);
+
+            if (feature.geometry && feature.geometry.type) {
+                const centro = layer.getBounds().getCenter();
+
+                const label = L.marker(centro, {
+                    pane: 'labelsPane',
+                    interactive: false,
+                    icon: L.divIcon({
+                        className: 'country-label',
+                        html: nombreEs
+                    })
+                });
+
+                countryLabels.push(label);
+            }
         }
 
         const geojsonURL = 'https://raw.githubusercontent.com/GeoGuess/GeoGuess-Maps/main/public/geojson/maps/regions/europe.geojson';
@@ -303,6 +383,54 @@
             .catch(error => {
                 console.error('Error cargando GeoJSON:', error);
             });
+
+        function resetearTodo() {
+            countryLayers.forEach(layer => {
+                layer.seleccionado = false;
+                layer.setStyle(estiloNormalPais());
+                layer.closePopup();
+            });
+
+            capitalMarkers.forEach(marker => {
+                marker.capitalSeleccionada = false;
+                marker.setStyle(estiloNormalCapital());
+                marker.closePopup();
+            });
+        }
+
+        function toggleCountryLabels() {
+            mostrarNombresPaises = !mostrarNombresPaises;
+
+            countryLabels.forEach(label => {
+                if (mostrarNombresPaises) {
+                    label.addTo(map);
+                } else {
+                    map.removeLayer(label);
+                }
+            });
+
+            document.getElementById('btnPaises').textContent =
+                mostrarNombresPaises ? 'Ocultar nombres de países' : 'Mostrar nombres de países';
+        }
+
+        function toggleCapitalLabels() {
+            mostrarNombresCapitales = !mostrarNombresCapitales;
+
+            capitalLabels.forEach(label => {
+                if (mostrarNombresCapitales) {
+                    label.addTo(map);
+                } else {
+                    map.removeLayer(label);
+                }
+            });
+
+            document.getElementById('btnCapitales').textContent =
+                mostrarNombresCapitales ? 'Ocultar capitales' : 'Mostrar capitales';
+        }
+
+        document.getElementById('btnReset').addEventListener('click', resetearTodo);
+        document.getElementById('btnPaises').addEventListener('click', toggleCountryLabels);
+        document.getElementById('btnCapitales').addEventListener('click', toggleCapitalLabels);
     </script>
 </body>
 </html>
