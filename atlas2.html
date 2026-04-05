@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mapa Interactivo de Europa</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+
+    <script src="diccionario-paises.js"></script>
+    <script src="diccionario-excepciones.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            margin: 10px;
+            color: #333;
+        }
+
+        #controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 10px;
+            align-items: center;
+        }
+
+        #controls button,
+        #controls select {
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        #controls button {
+            border: none;
+            background: #2d6cdf;
+            color: white;
+            cursor: pointer;
+        }
+
+        #controls button:hover {
+            background: #1d56b3;
+        }
+
+        #controls select {
+            border: 1px solid #ccc;
+            background: white;
+        }
+
+        #map {
+            width: 100%;
+            height: 650px;
+        }
+
+        .info-box {
+            background: white;
+            padding: 10px 12px;
+            border-radius: 6px;
+            box-shadow: 0 0 12px rgba(0,0,0,0.2);
+            line-height: 1.4;
+        }
+
+        .country-label {
+            background: transparent;
+            border: none;
+            padding: 0;
+            font-size: 12px;
+            font-weight: bold;
+            color: #222;
+            box-shadow: none;
+            text-shadow: 1px 1px 2px white, 0 0 3px white;
+            white-space: nowrap;
+        }
+
+        .capital-label {
+            background: transparent;
+            border: none;
+            padding: 0;
+            font-size: 12px;
+            font-weight: bold;
+            color: #8a0000;
+            box-shadow: none;
+            text-shadow: 1px 1px 2px white, 0 0 3px white;
+            white-space: nowrap;
+        }
+
+        .leaflet-div-icon {
+            background: transparent !important;
+            border: none !important;
+        }
+
+        .leaflet-popup-content {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mapa Político de Europa</h1>
+
+    <div id="controls">
+        <button id="btnReset">Reiniciar selección</button>
+        <button id="btnPaises">Mostrar nombres de países</button>
+        <button id="btnCapitales">Mostrar capitales</button>
+
+        <select id="selectorModo">
+            <option value="paises" selected>Solo países soberanos</option>
+            <option value="excepciones">Territorios / excepciones</option>
+        </select>
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+        const map = L.map('map').setView([54.5, 15.0], 4);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap &copy; CARTO'
+        }).addTo(map);
+
+        map.createPane('capitalesPane');
+        map.getPane('capitalesPane').style.zIndex = 650;
+
+        map.createPane('labelsPane');
+        map.getPane('labelsPane').style.zIndex = 700;
+
+        const TRADUCCIONES = {
+            "France": "Francia",
+            "Germany": "Alemania",
+            "Italy": "Italia",
+            "Spain": "España",
+            "United Kingdom": "Reino Unido",
+            "Poland": "Polonia",
+            "Netherlands": "Países Bajos",
+            "Belgium": "Bélgica",
+            "Austria": "Austria",
+            "Sweden": "Suecia",
+            "Norway": "Noruega",
+            "Denmark": "Dinamarca",
+            "Finland": "Finlandia",
+            "Greece": "Grecia",
+            "Portugal": "Portugal",
+            "Czech Republic": "República Checa",
+            "Czechia": "República Checa",
+            "Hungary": "Hungría",
+            "Romania": "Rumania",
+            "Bulgaria": "Bulgaria",
+            "Croatia": "Croacia",
+            "Ireland": "Irlanda",
+            "Switzerland": "Suiza",
+            "Serbia": "Serbia",
+            "Bosnia and Herzegovina": "Bosnia y Herzegovina",
+            "Slovakia": "Eslovaquia",
+            "Slovenia": "Eslovenia",
+            "Albania": "Albania",
+            "North Macedonia": "Macedonia del Norte",
+            "Montenegro": "Montenegro",
+            "Moldova": "Moldavia",
+            "Ukraine": "Ucrania",
+            "Belarus": "Bielorrusia",
+            "Lithuania": "Lituania",
+            "Latvia": "Letonia",
+            "Estonia": "Estonia",
+            "Luxembourg": "Luxemburgo",
+            "Iceland": "Islandia",
+            "Turkey": "Turquía",
+            "Kosovo": "Kosovo",
+            "Andorra": "Andorra",
+            "Monaco": "Mónaco",
+            "San Marino": "San Marino",
+            "Liechtenstein": "Liechtenstein",
+            "Holy See": "Ciudad del Vaticano",
+            "Vatican": "Ciudad del Vaticano",
+            "Vatican City": "Ciudad del Vaticano",
+            "Vatican City State": "Ciudad del Vaticano",
+            "Åland": "Åland",
+            "Aland": "Åland",
+            "Faroe Islands": "Islas Feroe",
+            "Gibraltar": "Gibraltar",
+            "Jersey": "Jersey",
+            "Guernsey": "Guernsey",
+            "Isle of Man": "Isla de Man",
+            "Svalbard": "Svalbard",
+            "Svalbard and Jan Mayen": "Svalbard",
+            "Abkhazia": "Abjasia",
+            "South Ossetia": "Osetia del Sur",
+            "Transnistria": "Transnistria",
+            "Artsakh": "Artsaj",
+            "Nagorno-Karabakh": "Artsaj"
+        };
+
+        // Centros visuales para que los nombres de países queden mejor ubicados
+        // Si no existe uno aquí, se usa la capital del diccionario activo.
+        const CENTROS_LABELS = {
+            "Francia": [46.5, 2.2],
+            "Alemania": [51.1, 10.4],
+            "Italia": [42.8, 12.8],
+            "España": [40.2, -3.5],
+            "Reino Unido": [54.5, -2.8],
+            "Polonia": [52.1, 19.4],
+            "Países Bajos": [52.3, 5.4],
+            "Bélgica": [50.8, 4.5],
+            "Austria": [47.7, 13.3],
+            "Suecia": [62.0, 16.5],
+            "Noruega": [63.5, 10.5],
+            "Dinamarca": [56.1, 10.0],
+            "Finlandia": [63.7, 26.0],
+            "Grecia": [39.2, 22.8],
+            "Portugal": [39.6, -8.1],
+            "República Checa": [49.8, 15.3],
+            "Hungría": [47.2, 19.3],
+            "Rumania": [45.8, 24.9],
+            "Bulgaria": [42.7, 25.3],
+            "Croacia": [45.2, 16.4],
+            "Irlanda": [53.3, -8.0],
+            "Suiza": [46.8, 8.2],
+            "Serbia": [44.2, 20.8],
+            "Bosnia y Herzegovina": [44.2, 17.8],
+            "Eslovaquia": [48.7, 19.6],
+            "Eslovenia": [46.2, 14.9],
+            "Albania": [41.1, 20.0],
+            "Macedonia del Norte": [41.6, 21.7],
+            "Montenegro": [42.8, 19.3],
+            "Moldavia": [47.2, 28.5],
+            "Ucrania": [49.0, 31.2],
+            "Bielorrusia": [53.5, 27.8],
+            "Lituania": [55.2, 23.9],
+            "Letonia": [56.9, 24.6],
+            "Estonia": [58.7, 25.0],
+            "Luxemburgo": [49.8, 6.1],
+            "Islandia": [64.9, -18.6],
+            "Turquía": [39.0, 35.0],
+            "Kosovo": [42.7, 20.9],
+            "Andorra": [42.55, 1.57],
+            "Mónaco": [43.74, 7.42],
+            "San Marino": [43.94, 12.46],
+            "Ciudad del Vaticano": [41.9022, 12.4539],
+            "Liechtenstein": [47.15, 9.55],
+            "Åland": [60.18, 19.9],
+            "Islas Feroe": [62.05, -6.9],
+            "Gibraltar": [36.14, -5.35],
+            "Jersey": [49.21, -2.13],
+            "Guernsey": [49.46, -2.58],
+            "Isla de Man": [54.23, -4.55],
+            "Svalbard": [78.5, 17.0],
+            "Abjasia": [43.0, 41.0],
+            "Osetia del Sur": [42.2, 43.95],
+            "Transnistria": [47.0, 29.2],
+            "Artsaj": [39.9, 46.8]
+        };
+
+        function nombrePaisEnEspanol(nombreOriginal) {
+            return TRADUCCIONES[nombreOriginal] || nombreOriginal;
+        }
+
+        function obtenerPosicionLabel(nombreEs, diccionarioActivo, layer) {
+            if (CENTROS_LABELS[nombreEs]) {
+                return CENTROS_LABELS[nombreEs];
+            }
+
+            const info = diccionarioActivo[nombreEs];
+            if (info && typeof info.lat === 'number' && typeof info.lon === 'number') {
+                return [info.lat, info.lon];
+            }
+
+            const centro = layer.getBounds().getCenter();
+            return [centro.lat, centro.lng];
+        }
+
+        function estiloNormalPais() {
+            return {
+                color: '#4a4a4a',
+                weight: 1.2,
+                fillColor: '#f2f5f9',
+                fillOpacity: 0.45
+            };
+        }
+
+        function estiloHoverPais() {
+            return {
+                color: '#1f1f1f',
+                weight: 2,
+                fillColor: '#8ec5ff',
+                fillOpacity: 0.75
+            };
+        }
+
+        function estiloSeleccionadoPais() {
+            return {
+                color: '#0d3b66',
+                weight: 2.5,
+                fillColor: '#4dabf7',
+                fillOpacity: 0.85
+            };
+        }
+
+        function estiloNormalCapital() {
+            return {
+                pane: 'capitalesPane',
+                radius: 6,
+                color: '#990000',
+                fillColor: '#ff2d2d',
+                fillOpacity: 0.95,
+                weight: 1.5
+            };
+        }
+
+        function estiloHoverCapital() {
+            return {
+                pane: 'capitalesPane',
+                radius: 7,
+                color: '#7a3d00',
+                fillColor: '#ffb347',
+                fillOpacity: 1,
+                weight: 2
+            };
+        }
+
+        function estiloSeleccionadaCapital() {
+            return {
+                pane: 'capitalesPane',
+                radius: 7,
+                color: '#0b5d1e',
+                fillColor: '#2ecc71',
+                fillOpacity: 1,
+                weight: 2
+            };
+        }
+
+        const infoBox = L.control({ position: 'topright' });
+        infoBox.onAdd = function() {
+            const div = L.DomUtil.create('div', 'info-box');
+            div.innerHTML = `
+                <b>Instrucciones</b><br>
+                • Pasa el mouse sobre un país para resaltarlo.<br>
+                • Haz clic en un país para seleccionarlo o deseleccionarlo.<br>
+                • Haz clic en un punto rojo para marcar una capital.<br>
+                • Usa el selector para cambiar entre países y excepciones.
+            `;
+            return div;
+        };
+        infoBox.addTo(map);
+
+        let geojsonLayer = null;
+        let countryLayers = [];
+        let capitalMarkers = [];
+        let countryLabels = [];
+        let capitalLabels = [];
+        let mostrarNombresPaises = false;
+        let mostrarNombresCapitales = false;
+        let modoActual = 'paises';
+
+        function limpiarCapasDinamicas() {
+            if (geojsonLayer) {
+                map.removeLayer(geojsonLayer);
+                geojsonLayer = null;
+            }
+
+            countryLayers.forEach(layer => {
+                if (map.hasLayer(layer)) map.removeLayer(layer);
+            });
+
+            capitalMarkers.forEach(marker => {
+                if (map.hasLayer(marker)) map.removeLayer(marker);
+            });
+
+            countryLabels.forEach(label => {
+                if (map.hasLayer(label)) map.removeLayer(label);
+            });
+
+            capitalLabels.forEach(label => {
+                if (map.hasLayer(label)) map.removeLayer(label);
+            });
+
+            countryLayers = [];
+            capitalMarkers = [];
+            countryLabels = [];
+            capitalLabels = [];
+        }
+
+        function obtenerDiccionarioActivo() {
+            return modoActual === 'excepciones'
+                ? window.DICCIONARIO_EXCEPCIONES
+                : window.DICCIONARIO_PAISES;
+        }
+
+        function agregarCapitales(diccionarioActivo) {
+            Object.entries(diccionarioActivo).forEach(([nombrePais, info]) => {
+                const marcador = L.circleMarker([info.lat, info.lon], estiloNormalCapital()).addTo(map);
+
+                marcador.capitalSeleccionada = false;
+
+                marcador.bindPopup(`
+                    <b>${info.capital}</b><br>
+                    ${nombrePais}
+                `);
+
+                marcador.on('mouseover', function() {
+                    if (!this.capitalSeleccionada) {
+                        this.setStyle(estiloHoverCapital());
+                    }
+                });
+
+                marcador.on('mouseout', function() {
+                    if (!this.capitalSeleccionada) {
+                        this.setStyle(estiloNormalCapital());
+                    }
+                });
+
+                marcador.on('click', function(e) {
+                    L.DomEvent.stopPropagation(e);
+
+                    this.capitalSeleccionada = !this.capitalSeleccionada;
+
+                    if (this.capitalSeleccionada) {
+                        this.setStyle(estiloSeleccionadaCapital());
+                    } else {
+                        this.setStyle(estiloNormalCapital());
+                    }
+
+                    this.openPopup();
+                });
+
+                capitalMarkers.push(marcador);
+
+                const capitalLabel = L.marker([info.lat, info.lon], {
+                    pane: 'labelsPane',
+                    interactive: false,
+                    icon: L.divIcon({
+                        className: 'capital-label',
+                        html: info.capital,
+                        iconSize: null
+                    })
+                });
+
+                capitalLabels.push(capitalLabel);
+
+                if (mostrarNombresCapitales) {
+                    capitalLabel.addTo(map);
+                }
+            });
+        }
+
+        function crearHandlerPais(diccionarioActivo) {
+            return function(feature, layer) {
+                const nombreOriginal =
+                    feature.properties.name ||
+                    feature.properties.ADMIN ||
+                    feature.properties.admin ||
+                    "País";
+
+                const nombreEs = nombrePaisEnEspanol(nombreOriginal);
+
+                layer.nombreEs = nombreEs;
+                layer.seleccionado = false;
+                layer.setStyle(estiloNormalPais());
+
+                layer.on('mouseover', function() {
+                    if (!layer.seleccionado) {
+                        layer.setStyle(estiloHoverPais());
+                    }
+                });
+
+                layer.on('mouseout', function() {
+                    if (!layer.seleccionado) {
+                        layer.setStyle(estiloNormalPais());
+                    }
+                });
+
+                layer.on('click', function(e) {
+                    L.DomEvent.stopPropagation(e);
+
+                    layer.seleccionado = !layer.seleccionado;
+
+                    if (layer.seleccionado) {
+                        layer.setStyle(estiloSeleccionadoPais());
+                    } else {
+                        layer.setStyle(estiloNormalPais());
+                    }
+
+                    // Solo mostrar el país
+                    layer.bindPopup(`<b>${nombreEs}</b>`).openPopup();
+                });
+
+                countryLayers.push(layer);
+
+                const posicionLabel = obtenerPosicionLabel(nombreEs, diccionarioActivo, layer);
+
+                const label = L.marker(posicionLabel, {
+                    pane: 'labelsPane',
+                    interactive: false,
+                    icon: L.divIcon({
+                        className: 'country-label',
+                        html: nombreEs,
+                        iconSize: null
+                    })
+                });
+
+                countryLabels.push(label);
+
+                if (mostrarNombresPaises) {
+                    label.addTo(map);
+                }
+            };
+        }
+
+        function cargarMapa() {
+            limpiarCapasDinamicas();
+
+            const diccionarioActivo = obtenerDiccionarioActivo();
+            const nombresValidos = new Set(Object.keys(diccionarioActivo));
+            const geojsonURL = 'https://raw.githubusercontent.com/GeoGuess/GeoGuess-Maps/main/public/geojson/maps/regions/europe.geojson';
+
+            agregarCapitales(diccionarioActivo);
+
+            fetch(geojsonURL)
+                .then(response => response.json())
+                .then(data => {
+                    geojsonLayer = L.geoJSON(data, {
+                        filter: function(feature) {
+                            const nombreOriginal =
+                                feature.properties.name ||
+                                feature.properties.ADMIN ||
+                                feature.properties.admin ||
+                                "";
+
+                            const nombreEs = nombrePaisEnEspanol(nombreOriginal);
+                            return nombresValidos.has(nombreEs);
+                        },
+                        style: estiloNormalPais,
+                        onEachFeature: crearHandlerPais(diccionarioActivo)
+                    }).addTo(map);
+                })
+                .catch(error => {
+                    console.error('Error cargando GeoJSON:', error);
+                });
+        }
+
+        function resetearTodo() {
+            countryLayers.forEach(layer => {
+                layer.seleccionado = false;
+                layer.setStyle(estiloNormalPais());
+                layer.closePopup();
+            });
+
+            capitalMarkers.forEach(marker => {
+                marker.capitalSeleccionada = false;
+                marker.setStyle(estiloNormalCapital());
+                marker.closePopup();
+            });
+        }
+
+        function toggleCountryLabels() {
+            mostrarNombresPaises = !mostrarNombresPaises;
+
+            countryLabels.forEach(label => {
+                if (mostrarNombresPaises) {
+                    label.addTo(map);
+                } else if (map.hasLayer(label)) {
+                    map.removeLayer(label);
+                }
+            });
+
+            document.getElementById('btnPaises').textContent =
+                mostrarNombresPaises ? 'Ocultar nombres de países' : 'Mostrar nombres de países';
+        }
+
+        function toggleCapitalLabels() {
+            mostrarNombresCapitales = !mostrarNombresCapitales;
+
+            capitalLabels.forEach(label => {
+                if (mostrarNombresCapitales) {
+                    label.addTo(map);
+                } else if (map.hasLayer(label)) {
+                    map.removeLayer(label);
+                }
+            });
+
+            document.getElementById('btnCapitales').textContent =
+                mostrarNombresCapitales ? 'Ocultar capitales' : 'Mostrar capitales';
+        }
+
+        document.getElementById('btnReset').addEventListener('click', resetearTodo);
+        document.getElementById('btnPaises').addEventListener('click', toggleCountryLabels);
+        document.getElementById('btnCapitales').addEventListener('click', toggleCapitalLabels);
+
+        document.getElementById('selectorModo').addEventListener('change', function(e) {
+            modoActual = e.target.value;
+            cargarMapa();
+        });
+
+        cargarMapa();
+    </script>
+</body>
+</html>
