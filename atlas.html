@@ -196,8 +196,6 @@
             "Nagorno-Karabakh": "Artsaj"
         };
 
-        // Centros visuales para que los nombres de países queden mejor ubicados
-        // Si no existe uno aquí, se usa la capital del diccionario activo.
         const CENTROS_LABELS = {
             "Francia": [46.5, 2.2],
             "Alemania": [51.1, 10.4],
@@ -400,7 +398,9 @@
                 marcador.bindPopup(`
                     <b>${info.capital}</b><br>
                     ${nombrePais}
-                `);
+                `, {
+                    autoPan: false
+                });
 
                 marcador.on('mouseover', function() {
                     if (!this.capitalSeleccionada) {
@@ -415,7 +415,9 @@
                 });
 
                 marcador.on('click', function(e) {
-                    L.DomEvent.stopPropagation(e);
+                    if (e.originalEvent) {
+                        L.DomEvent.stop(e.originalEvent);
+                    }
 
                     this.capitalSeleccionada = !this.capitalSeleccionada;
 
@@ -475,7 +477,9 @@
                 });
 
                 layer.on('click', function(e) {
-                    L.DomEvent.stopPropagation(e);
+                    if (e.originalEvent) {
+                        L.DomEvent.stop(e.originalEvent);
+                    }
 
                     layer.seleccionado = !layer.seleccionado;
 
@@ -485,8 +489,13 @@
                         layer.setStyle(estiloNormalPais());
                     }
 
-                    // Solo mostrar el país
-                    layer.bindPopup(`<b>${nombreEs}</b>`).openPopup();
+                    L.popup({
+                        autoPan: false,
+                        closeButton: true
+                    })
+                    .setLatLng(e.latlng)
+                    .setContent(`<b>${nombreEs}</b>`)
+                    .openOn(map);
                 });
 
                 countryLayers.push(layer);
