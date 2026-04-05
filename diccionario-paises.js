@@ -1,6 +1,6 @@
 window.DICCIONARIO_PAISES = {
     "Francia": { capital: "París", lat: 48.8566, lon: 2.3522 },
-    "Alemania": { capital: "Berlín", lat: 52.52, lon: 13.4050 },
+    "Alemania": { capital: "Berlín", lat: 52.5200, lon: 13.4050 },
     "Italia": { capital: "Roma", lat: 41.9028, lon: 12.4964 },
     "España": { capital: "Madrid", lat: 40.4168, lon: -3.7038 },
     "Reino Unido": { capital: "Londres", lat: 51.5074, lon: -0.1278 },
