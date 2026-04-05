@@ -42,5 +42,7 @@ window.DICCIONARIO_PAISES = {
     "Mónaco": { capital: "Mónaco", lat: 43.7384, lon: 7.4246 },
     "San Marino": { capital: "San Marino", lat: 43.9424, lon: 12.4578 },
     "Ciudad del Vaticano": { capital: "Ciudad del Vaticano", lat: 41.9022, lon: 12.4539 },
-    "Liechtenstein": { capital: "Vaduz", lat: 47.1410, lon: 9.5209 }
+    "Liechtenstein": { capital: "Vaduz", lat: 47.1410, lon: 9.5209 },
+    "Malta": { capital: "La Valeta", lat: 35.8989, lon: 14.5146 },
+    "Chipre": { capital: "Nicosia", lat: 35.1856, lon: 33.3823 }
 };
