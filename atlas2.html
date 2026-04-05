@@ -176,6 +176,8 @@
             "Monaco": "Mónaco",
             "San Marino": "San Marino",
             "Liechtenstein": "Liechtenstein",
+            "Malta": "Malta",
+            "Cyprus": "Chipre",
             "Holy See": "Ciudad del Vaticano",
             "Vatican": "Ciudad del Vaticano",
             "Vatican City": "Ciudad del Vaticano",
@@ -196,8 +198,6 @@
             "Nagorno-Karabakh": "Artsaj"
         };
 
-        // Centros visuales para que los nombres de países queden mejor ubicados
-        // Si no existe uno aquí, se usa la capital del diccionario activo.
         const CENTROS_LABELS = {
             "Francia": [46.5, 2.2],
             "Alemania": [51.1, 10.4],
@@ -243,6 +243,8 @@
             "San Marino": [43.94, 12.46],
             "Ciudad del Vaticano": [41.9022, 12.4539],
             "Liechtenstein": [47.15, 9.55],
+            "Malta": [35.94, 14.38],
+            "Chipre": [35.10, 33.25],
             "Åland": [60.18, 19.9],
             "Islas Feroe": [62.05, -6.9],
             "Gibraltar": [36.14, -5.35],
@@ -400,7 +402,9 @@
                 marcador.bindPopup(`
                     <b>${info.capital}</b><br>
                     ${nombrePais}
-                `);
+                `, {
+                    autoPan: false
+                });
 
                 marcador.on('mouseover', function() {
                     if (!this.capitalSeleccionada) {
@@ -415,7 +419,9 @@
                 });
 
                 marcador.on('click', function(e) {
-                    L.DomEvent.stopPropagation(e);
+                    if (e.originalEvent) {
+                        L.DomEvent.stop(e.originalEvent);
+                    }
 
                     this.capitalSeleccionada = !this.capitalSeleccionada;
 
@@ -475,7 +481,9 @@
                 });
 
                 layer.on('click', function(e) {
-                    L.DomEvent.stopPropagation(e);
+                    if (e.originalEvent) {
+                        L.DomEvent.stop(e.originalEvent);
+                    }
 
                     layer.seleccionado = !layer.seleccionado;
 
@@ -485,8 +493,13 @@
                         layer.setStyle(estiloNormalPais());
                     }
 
-                    // Solo mostrar el país
-                    layer.bindPopup(`<b>${nombreEs}</b>`).openPopup();
+                    L.popup({
+                        autoPan: false,
+                        closeButton: true
+                    })
+                    .setLatLng(e.latlng)
+                    .setContent(`<b>${nombreEs}</b>`)
+                    .openOn(map);
                 });
 
                 countryLayers.push(layer);
