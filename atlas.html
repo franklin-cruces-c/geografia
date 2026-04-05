@@ -196,8 +196,82 @@
             "Nagorno-Karabakh": "Artsaj"
         };
 
+        // Centros visuales para que los nombres de países queden mejor ubicados
+        // Si no existe uno aquí, se usa la capital del diccionario activo.
+        const CENTROS_LABELS = {
+            "Francia": [46.5, 2.2],
+            "Alemania": [51.1, 10.4],
+            "Italia": [42.8, 12.8],
+            "España": [40.2, -3.5],
+            "Reino Unido": [54.5, -2.8],
+            "Polonia": [52.1, 19.4],
+            "Países Bajos": [52.3, 5.4],
+            "Bélgica": [50.8, 4.5],
+            "Austria": [47.7, 13.3],
+            "Suecia": [62.0, 16.5],
+            "Noruega": [63.5, 10.5],
+            "Dinamarca": [56.1, 10.0],
+            "Finlandia": [63.7, 26.0],
+            "Grecia": [39.2, 22.8],
+            "Portugal": [39.6, -8.1],
+            "República Checa": [49.8, 15.3],
+            "Hungría": [47.2, 19.3],
+            "Rumania": [45.8, 24.9],
+            "Bulgaria": [42.7, 25.3],
+            "Croacia": [45.2, 16.4],
+            "Irlanda": [53.3, -8.0],
+            "Suiza": [46.8, 8.2],
+            "Serbia": [44.2, 20.8],
+            "Bosnia y Herzegovina": [44.2, 17.8],
+            "Eslovaquia": [48.7, 19.6],
+            "Eslovenia": [46.2, 14.9],
+            "Albania": [41.1, 20.0],
+            "Macedonia del Norte": [41.6, 21.7],
+            "Montenegro": [42.8, 19.3],
+            "Moldavia": [47.2, 28.5],
+            "Ucrania": [49.0, 31.2],
+            "Bielorrusia": [53.5, 27.8],
+            "Lituania": [55.2, 23.9],
+            "Letonia": [56.9, 24.6],
+            "Estonia": [58.7, 25.0],
+            "Luxemburgo": [49.8, 6.1],
+            "Islandia": [64.9, -18.6],
+            "Turquía": [39.0, 35.0],
+            "Kosovo": [42.7, 20.9],
+            "Andorra": [42.55, 1.57],
+            "Mónaco": [43.74, 7.42],
+            "San Marino": [43.94, 12.46],
+            "Ciudad del Vaticano": [41.9022, 12.4539],
+            "Liechtenstein": [47.15, 9.55],
+            "Åland": [60.18, 19.9],
+            "Islas Feroe": [62.05, -6.9],
+            "Gibraltar": [36.14, -5.35],
+            "Jersey": [49.21, -2.13],
+            "Guernsey": [49.46, -2.58],
+            "Isla de Man": [54.23, -4.55],
+            "Svalbard": [78.5, 17.0],
+            "Abjasia": [43.0, 41.0],
+            "Osetia del Sur": [42.2, 43.95],
+            "Transnistria": [47.0, 29.2],
+            "Artsaj": [39.9, 46.8]
+        };
+
         function nombrePaisEnEspanol(nombreOriginal) {
             return TRADUCCIONES[nombreOriginal] || nombreOriginal;
+        }
+
+        function obtenerPosicionLabel(nombreEs, diccionarioActivo, layer) {
+            if (CENTROS_LABELS[nombreEs]) {
+                return CENTROS_LABELS[nombreEs];
+            }
+
+            const info = diccionarioActivo[nombreEs];
+            if (info && typeof info.lat === 'number' && typeof info.lon === 'number') {
+                return [info.lat, info.lon];
+            }
+
+            const centro = layer.getBounds().getCenter();
+            return [centro.lat, centro.lng];
         }
 
         function estiloNormalPais() {
@@ -411,16 +485,15 @@
                         layer.setStyle(estiloNormalPais());
                     }
 
-                    const info = diccionarioActivo[nombreEs];
-                    const textoCapital = info ? `<br><b>Capital:</b> ${info.capital}` : '';
-
-                    layer.bindPopup(`<b>${nombreEs}</b>${textoCapital}`).openPopup();
+                    // Solo mostrar el país
+                    layer.bindPopup(`<b>${nombreEs}</b>`).openPopup();
                 });
 
                 countryLayers.push(layer);
 
-                const centro = layer.getBounds().getCenter();
-                const label = L.marker(centro, {
+                const posicionLabel = obtenerPosicionLabel(nombreEs, diccionarioActivo, layer);
+
+                const label = L.marker(posicionLabel, {
                     pane: 'labelsPane',
                     interactive: false,
                     icon: L.divIcon({
