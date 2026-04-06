@@ -54,7 +54,6 @@
         <button id="btnReset">Reiniciar selección</button>
         <button id="btnPaises">Mostrar nombres de países</button>
         <button id="btnCapitales">Mostrar capitales</button>
-
         <select id="selectorModo">
             <option value="paises" selected>Solo países soberanos</option>
             <option value="excepciones">Territorios / excepciones</option>
@@ -83,7 +82,6 @@
         let regionData = null;
         let boundaryData = null;
         let countryInfoMap = new Map();
-
         let regionLayer = null;
         let boundaryLayer = null;
         let countryLayers = [];
@@ -107,13 +105,15 @@
             "Bosnia and Herzegovina":"Bosnia y Herzegovina","Slovakia":"Eslovaquia","Slovenia":"Eslovenia","Albania":"Albania",
             "North Macedonia":"Macedonia del Norte","Macedonia":"Macedonia del Norte","Montenegro":"Montenegro","Moldova":"Moldavia",
             "Ukraine":"Ucrania","Belarus":"Bielorrusia","Lithuania":"Lituania","Latvia":"Letonia","Estonia":"Estonia",
-            "Luxembourg":"Luxemburgo","Iceland":"Islandia","Turkey":"Turquía","Türkiye":"Turquía","Kosovo":"Kosovo",
+            "Luxembourg":"Luxemburgo","Iceland":"Islandia","Turkey":"Turquía","Türkiye":"Turquía",
+            "Kosovo":"Kosovo","Kosovo*":"Kosovo","Kosova":"Kosovo","XK":"Kosovo",
             "Andorra":"Andorra","Monaco":"Mónaco","San Marino":"San Marino","Liechtenstein":"Liechtenstein",
             "Malta":"Malta","Cyprus":"Chipre","Holy See":"Ciudad del Vaticano","Vatican":"Ciudad del Vaticano",
-            "Vatican City":"Ciudad del Vaticano","Vatican City State":"Ciudad del Vaticano","Åland":"Åland","Aland":"Åland",
-            "Faroe Islands":"Islas Feroe","Gibraltar":"Gibraltar","Jersey":"Jersey","Guernsey":"Guernsey",
-            "Isle of Man":"Isla de Man","Svalbard":"Svalbard","Svalbard and Jan Mayen":"Svalbard","Abkhazia":"Abjasia",
-            "South Ossetia":"Osetia del Sur","Transnistria":"Transnistria","Artsakh":"Artsaj","Nagorno-Karabakh":"Artsaj"
+            "Vatican City":"Ciudad del Vaticano","Vatican City State":"Ciudad del Vaticano",
+            "Åland":"Åland","Aland":"Åland","Faroe Islands":"Islas Feroe","Gibraltar":"Gibraltar",
+            "Jersey":"Jersey","Guernsey":"Guernsey","Isle of Man":"Isla de Man","Svalbard":"Svalbard",
+            "Svalbard and Jan Mayen":"Svalbard","Abkhazia":"Abjasia","South Ossetia":"Osetia del Sur",
+            "Transnistria":"Transnistria","Artsakh":"Artsaj","Nagorno-Karabakh":"Artsaj"
         };
 
         const CENTROS_LABELS = {
@@ -125,11 +125,8 @@
             "Eslovaquia":[48.7,19.6],"Eslovenia":[46.2,14.9],"Albania":[41.1,20.0],"Macedonia del Norte":[41.72,21.72],
             "Montenegro":[42.8,19.3],"Moldavia":[47.2,28.5],"Ucrania":[49.0,31.2],"Bielorrusia":[53.5,27.8],
             "Lituania":[55.2,23.9],"Letonia":[56.9,24.6],"Estonia":[58.7,25.0],"Luxemburgo":[49.8,6.1],"Islandia":[64.9,-18.6],
-            "Turquía":[39.0,35.0],"Kosovo":[42.7,20.9],"Andorra":[42.55,1.57],"Mónaco":[43.74,7.42],"San Marino":[43.94,12.46],
-            "Ciudad del Vaticano":[41.9022,12.4539],"Liechtenstein":[47.15,9.55],"Malta":[35.94,14.38],"Chipre":[35.10,33.25],
-            "Åland":[60.18,19.9],"Islas Feroe":[62.05,-6.9],"Gibraltar":[36.14,-5.35],"Jersey":[49.21,-2.13],
-            "Guernsey":[49.46,-2.58],"Isla de Man":[54.23,-4.55],"Svalbard":[78.5,17.0],"Abjasia":[43.0,41.0],
-            "Osetia del Sur":[42.2,43.95],"Transnistria":[47.0,29.2],"Artsaj":[39.9,46.8]
+            "Turquía":[39.0,35.0],"Kosovo":[42.67,21.10],"Andorra":[42.55,1.57],"Mónaco":[43.74,7.42],"San Marino":[43.94,12.46],
+            "Ciudad del Vaticano":[41.9022,12.4539],"Liechtenstein":[47.15,9.55],"Malta":[35.94,14.38],"Chipre":[35.10,33.25]
         };
 
         const CAPITAL_OFFSETS = {
@@ -148,31 +145,17 @@
         };
 
         const TRADUCCION_MONEDAS = {
-            "Euro":"Euro",
-            "United States dollar":"Dólar estadounidense",
-            "Pound sterling":"Libra esterlina",
-            "Swiss franc":"Franco suizo",
-            "Czech koruna":"Corona checa",
-            "Hungarian forint":"Forinto húngaro",
-            "Polish złoty":"Esloti polaco",
-            "Romanian leu":"Leu rumano",
-            "Bulgarian lev":"Lev búlgaro",
-            "Serbian dinar":"Dinar serbio",
-            "Bosnia and Herzegovina convertible mark":"Marco convertible de Bosnia y Herzegovina",
-            "Albanian lek":"Lek albanés",
-            "Moldovan leu":"Leu moldavo",
-            "Ukrainian hryvnia":"Grivna ucraniana",
-            "Belarusian ruble":"Rublo bielorruso",
-            "Icelandic króna":"Corona islandesa",
-            "Turkish lira":"Lira turca",
-            "Macedonian denar":"Denar macedonio",
-            "Norwegian krone":"Corona noruega",
-            "Swedish krona":"Corona sueca",
+            "Euro":"Euro","United States dollar":"Dólar estadounidense","Pound sterling":"Libra esterlina",
+            "Swiss franc":"Franco suizo","Czech koruna":"Corona checa","Hungarian forint":"Forinto húngaro",
+            "Polish złoty":"Esloti polaco","Romanian leu":"Leu rumano","Bulgarian lev":"Lev búlgaro",
+            "Serbian dinar":"Dinar serbio","Bosnia and Herzegovina convertible mark":"Marco convertible de Bosnia y Herzegovina",
+            "Albanian lek":"Lek albanés","Moldovan leu":"Leu moldavo","Ukrainian hryvnia":"Grivna ucraniana",
+            "Belarusian ruble":"Rublo bielorruso","Icelandic króna":"Corona islandesa","Turkish lira":"Lira turca",
+            "Macedonian denar":"Denar macedonio","Norwegian krone":"Corona noruega","Swedish krona":"Corona sueca",
             "Danish krone":"Corona danesa"
         };
 
         function nombrePaisEnEspanol(nombreOriginal) { return TRADUCCIONES[nombreOriginal] || nombreOriginal; }
-
         function obtenerPosicionLabel(nombreEs, diccionarioActivo, layer) {
             if (CENTROS_LABELS[nombreEs]) return CENTROS_LABELS[nombreEs];
             const info = diccionarioActivo[nombreEs];
@@ -192,13 +175,11 @@
             if (typeof numero !== 'number') return 'No disponible';
             return numero.toLocaleString('es-ES');
         }
-
         function obtenerIdiomasTexto(languagesObj) {
             if (!languagesObj || typeof languagesObj !== 'object') return 'No disponible';
             const idiomas = Object.values(languagesObj).map(lang => TRADUCCION_IDIOMAS[lang] || lang).filter(Boolean);
             return idiomas.length ? idiomas.join(', ') : 'No disponible';
         }
-
         function obtenerMonedaTexto(currenciesObj) {
             if (!currenciesObj || typeof currenciesObj !== 'object') return 'No disponible';
             const monedas = Object.values(currenciesObj).map(moneda => {
@@ -211,18 +192,13 @@
             }).filter(Boolean);
             return monedas.length ? monedas.join(', ') : 'No disponible';
         }
-
         function obtenerCapitalTexto(capitalArray) {
             if (!capitalArray) return 'No disponible';
             if (Array.isArray(capitalArray) && capitalArray.length) return capitalArray.join(', ');
             return 'No disponible';
         }
 
-        function registrarAliasCountryInfo(alias, info) {
-            if (!alias) return;
-            countryInfoMap.set(alias, info);
-        }
-
+        function registrarAliasCountryInfo(alias, info) { if (alias) countryInfoMap.set(alias, info); }
         function construirMapaCountryInfo(data) {
             countryInfoMap.clear();
             data.forEach(country => {
@@ -235,77 +211,53 @@
                     monedas: country?.currencies || {},
                     capital: country?.capital || []
                 };
-
                 registrarAliasCountryInfo(country?.name?.common, info);
                 registrarAliasCountryInfo(country?.name?.official, info);
-
-                const alias = [
+                [
                     ['Czechia','República Checa'],['Bosnia and Herzegovina','Bosnia y Herzegovina'],
                     ['North Macedonia','Macedonia del Norte'],['Macedonia','Macedonia del Norte'],
                     ['Moldova','Moldavia'],['Republic of Moldova','Moldavia'],['Turkey','Turquía'],['Türkiye','Turquía'],
-                    ['Vatican City','Ciudad del Vaticano'],['Holy See','Ciudad del Vaticano'],
-                    ['Netherlands','Países Bajos'],['United Kingdom','Reino Unido'],['Belarus','Bielorrusia'],['Cyprus','Chipre']
-                ];
-
-                alias.forEach(([apiName, localName]) => {
+                    ['Vatican City','Ciudad del Vaticano'],['Holy See','Ciudad del Vaticano'],['Netherlands','Países Bajos'],
+                    ['United Kingdom','Reino Unido'],['Belarus','Bielorrusia'],['Cyprus','Chipre'],
+                    ['Kosovo*','Kosovo'],['XK','Kosovo']
+                ].forEach(([apiName, localName]) => {
                     if (country?.name?.common === apiName || country?.name?.official === apiName) {
                         registrarAliasCountryInfo(localName, info);
                     }
                 });
-
                 registrarAliasCountryInfo(nombrePaisEnEspanol(country?.name?.common || ''), info);
                 registrarAliasCountryInfo(nombrePaisEnEspanol(country?.name?.official || ''), info);
             });
         }
-
         function obtenerInfoPais(nombreEs) { return countryInfoMap.get(nombreEs) || null; }
-
         function calcularAreaKm2(layer) {
             try { return Math.round(turf.area(layer.toGeoJSON()) / 1000000); }
             catch (e) { return null; }
         }
-
         function crearContenidoPopupPais(nombreEs, layer = null) {
             const info = obtenerInfoPais(nombreEs);
             const area = layer ? calcularAreaKm2(layer) : null;
-
             if (!info) {
-                return `
-                    <div class="popup-pais">
-                        <div class="popup-titulo">${nombreEs}</div>
-                        <div class="popup-linea">No hay datos adicionales disponibles</div>
-                        <div class="popup-linea"><b>Área:</b> ${area ? area.toLocaleString('es-ES') + ' km²' : 'No disponible'}</div>
-                    </div>
-                `;
+                return `<div class="popup-pais"><div class="popup-titulo">${nombreEs}</div>
+                    <div class="popup-linea">No hay datos adicionales disponibles</div>
+                    <div class="popup-linea"><b>Área:</b> ${area ? area.toLocaleString('es-ES') + ' km²' : 'No disponible'}</div></div>`;
             }
-
-            const banderaHtml = info.bandera ? `
-                <div class="popup-bandera-wrap">
-                    <img src="${info.bandera}" alt="Bandera de ${nombreEs}" class="popup-bandera">
-                </div>
-            ` : '';
-
-            return `
-                <div class="popup-pais">
-                    <div class="popup-titulo">${nombreEs}</div>
-                    ${banderaHtml}
-                    <div class="popup-linea"><b>Capital:</b> <span class="popup-capital">${obtenerCapitalTexto(info.capital)}</span></div>
-                    <div class="popup-linea"><b>Idiomas oficiales:</b> ${obtenerIdiomasTexto(info.idiomas)}</div>
-                    <div class="popup-linea"><b>Población:</b> ${formatearPoblacion(info.poblacion)}</div>
-                    <div class="popup-linea"><b>Moneda:</b> ${obtenerMonedaTexto(info.monedas)}</div>
-                    <div class="popup-linea"><b>Área:</b> ${area ? area.toLocaleString('es-ES') + ' km²' : 'No disponible'}</div>
-                </div>
-            `;
+            const banderaHtml = info.bandera ? `<div class="popup-bandera-wrap"><img src="${info.bandera}" alt="Bandera de ${nombreEs}" class="popup-bandera"></div>` : '';
+            return `<div class="popup-pais">
+                <div class="popup-titulo">${nombreEs}</div>
+                ${banderaHtml}
+                <div class="popup-linea"><b>Capital:</b> <span class="popup-capital">${obtenerCapitalTexto(info.capital)}</span></div>
+                <div class="popup-linea"><b>Idiomas oficiales:</b> ${obtenerIdiomasTexto(info.idiomas)}</div>
+                <div class="popup-linea"><b>Población:</b> ${formatearPoblacion(info.poblacion)}</div>
+                <div class="popup-linea"><b>Moneda:</b> ${obtenerMonedaTexto(info.monedas)}</div>
+                <div class="popup-linea"><b>Área:</b> ${area ? area.toLocaleString('es-ES') + ' km²' : 'No disponible'}</div>
+            </div>`;
         }
 
         const infoBox = L.control({ position: 'topright' });
         infoBox.onAdd = function() {
             const div = L.DomUtil.create('div', 'info-box');
-            div.innerHTML = `
-                <b>Instrucciones</b><br>
-                • Haz clic en un país para ver datos.<br>
-                • Haz clic en un punto rojo para marcar una capital.<br>
-            `;
+            div.innerHTML = `<b>Instrucciones</b><br>• Haz clic en un país para ver datos.<br>• Haz clic en un punto rojo para marcar una capital.<br>`;
             return div;
         };
         infoBox.addTo(map);
@@ -313,15 +265,10 @@
         function limpiarCapasDinamicas() {
             if (regionLayer) { map.removeLayer(regionLayer); regionLayer = null; }
             if (boundaryLayer) { map.removeLayer(boundaryLayer); boundaryLayer = null; }
-
             capitalMarkers.forEach(marker => { if (map.hasLayer(marker)) map.removeLayer(marker); });
             countryLabels.forEach(label => { if (map.hasLayer(label)) map.removeLayer(label); });
             capitalLabels.forEach(label => { if (map.hasLayer(label)) map.removeLayer(label); });
-
-            countryLayers = [];
-            capitalMarkers = [];
-            countryLabels = [];
-            capitalLabels = [];
+            countryLayers = []; capitalMarkers = []; countryLabels = []; capitalLabels = [];
         }
 
         function obtenerDiccionarioActivo() {
@@ -331,31 +278,21 @@
         function agregarCapitales(diccionarioActivo) {
             Object.entries(diccionarioActivo).forEach(([nombrePais, info]) => {
                 const coords = CAPITAL_OFFSETS[nombrePais] || { lat: info.lat, lon: info.lon };
-
                 const marcador = L.circleMarker([coords.lat, coords.lon], estiloNormalCapital()).addTo(map);
                 marcador.capitalSeleccionada = false;
                 marcador.bindPopup(`<b>${info.capital}</b><br>${nombrePais}`, { autoPan: false });
-
-                marcador.on('mouseover', function() {
-                    if (!this.capitalSeleccionada) this.setStyle(estiloHoverCapital());
-                });
-
-                marcador.on('mouseout', function() {
-                    if (!this.capitalSeleccionada) this.setStyle(estiloNormalCapital());
-                });
-
+                marcador.on('mouseover', function() { if (!this.capitalSeleccionada) this.setStyle(estiloHoverCapital()); });
+                marcador.on('mouseout', function() { if (!this.capitalSeleccionada) this.setStyle(estiloNormalCapital()); });
                 marcador.on('click', function(e) {
                     if (e.originalEvent) L.DomEvent.stop(e.originalEvent);
                     this.capitalSeleccionada = !this.capitalSeleccionada;
                     this.setStyle(this.capitalSeleccionada ? estiloSeleccionadaCapital() : estiloNormalCapital());
                     this.openPopup();
                 });
-
                 capitalMarkers.push(marcador);
 
                 const capitalLabel = L.marker([coords.lat, coords.lon], {
-                    pane: 'labelsPane',
-                    interactive: false,
+                    pane: 'labelsPane', interactive: false,
                     icon: L.divIcon({ className: 'capital-label', html: info.capital, iconSize: null })
                 });
                 capitalLabels.push(capitalLabel);
@@ -371,19 +308,15 @@
             layer.on('mouseover', function() {
                 if (!layer.seleccionado) layer.setStyle(estiloHoverPais());
             });
-
             layer.on('mouseout', function() {
                 if (!layer.seleccionado) layer.setStyle(estiloNormalPais());
             });
-
             layer.on('click', function(e) {
                 if (e.originalEvent) L.DomEvent.stop(e.originalEvent);
                 const centro = obtenerPosicionLabel(nombreEs, diccionarioActivo, layer);
-
                 layer.seleccionado = !layer.seleccionado;
                 layer.setStyle(layer.seleccionado ? estiloSeleccionadoPais() : estiloNormalPais());
                 if (layer.seleccionado && layer.bringToFront) layer.bringToFront();
-
                 L.popup({ autoPan: false, closeButton: true, maxWidth: 260 })
                     .setLatLng(centro)
                     .setContent(crearContenidoPopupPais(nombreEs, layer))
@@ -394,8 +327,7 @@
 
             const posicionLabel = obtenerPosicionLabel(nombreEs, diccionarioActivo, layer);
             const label = L.marker(posicionLabel, {
-                pane: 'labelsPane',
-                interactive: false,
+                pane: 'labelsPane', interactive: false,
                 icon: L.divIcon({ className: 'country-label', html: nombreEs, iconSize: null })
             });
             countryLabels.push(label);
@@ -404,10 +336,8 @@
 
         function renderMapa() {
             limpiarCapasDinamicas();
-
             const diccionarioActivo = obtenerDiccionarioActivo();
             const nombresValidos = new Set(Object.keys(diccionarioActivo));
-
             agregarCapitales(diccionarioActivo);
 
             if (!regionData) return;
@@ -429,8 +359,7 @@
 
             if (boundaryData) {
                 boundaryLayer = L.geoJSON(boundaryData, {
-                    pane: 'boundaryPane',
-                    interactive: false,
+                    pane: 'boundaryPane', interactive: false,
                     style: { color: '#000000', weight: 1.25, opacity: 1 }
                 }).addTo(map);
             }
@@ -440,16 +369,14 @@
             return Promise.all([
                 fetch(REGION_URL).then(r => r.json()).then(d => { regionData = d; }),
                 fetch(BOUNDARY_URL).then(r => r.json()).then(d => { boundaryData = d; })
-            ]).catch(error => {
-                console.error('Error cargando geometría GISCO:', error);
-            });
+            ]).catch(error => console.error('Error cargando geometría GISCO:', error));
         }
 
         function cargarInfoPaisesUnaSolaVez() {
             return fetch(COUNTRY_INFO_URL)
                 .then(response => response.json())
                 .then(data => { construirMapaCountryInfo(data); })
-                .catch(error => { console.error('Error cargando información de países:', error); });
+                .catch(error => console.error('Error cargando información de países:', error));
         }
 
         function resetearTodo() {
