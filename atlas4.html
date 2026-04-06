@@ -15,31 +15,28 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
         h1 { margin: 10px; color: #333; }
-        #controls {
-            display: flex; gap: 10px; flex-wrap: wrap; margin: 10px; align-items: center;
-        }
-        #controls button, #controls select {
-            padding: 10px 14px; border-radius: 6px; font-size: 14px;
-        }
-        #controls button {
-            border: none; background: #2d6cdf; color: white; cursor: pointer;
-        }
+        #controls { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px; align-items: center; }
+        #controls button, #controls select { padding: 10px 14px; border-radius: 6px; font-size: 14px; }
+        #controls button { border: none; background: #2d6cdf; color: white; cursor: pointer; }
         #controls button:hover { background: #1d56b3; }
         #controls select { border: 1px solid #ccc; background: white; }
         #map { width: 100%; height: 650px; }
+
         .info-box {
             background: white; padding: 10px 12px; border-radius: 6px;
             box-shadow: 0 0 12px rgba(0,0,0,0.2); line-height: 1.4;
         }
+
         .country-label, .capital-label {
             background: transparent; border: none; padding: 0; font-size: 12px;
-            font-weight: bold; text-shadow: 1px 1px 2px white, 0 0 3px white;
-            white-space: nowrap;
+            font-weight: bold; text-shadow: 1px 1px 2px white, 0 0 3px white; white-space: nowrap;
         }
         .country-label { color: #111; }
         .capital-label { color: #8a0000; }
+        .assist-label { color: #0d3b66; }
         .leaflet-div-icon { background: transparent !important; border: none !important; }
         .leaflet-popup-content { font-size: 14px; }
+
         .popup-pais { min-width: 220px; }
         .popup-titulo { font-size: 16px; font-weight: bold; margin-bottom: 6px; color: #111; }
         .popup-bandera-wrap { margin: 6px 0 10px 0; }
@@ -58,7 +55,6 @@
         <button id="btnReset">Reiniciar selección</button>
         <button id="btnPaises">Mostrar nombres de países</button>
         <button id="btnCapitales">Mostrar capitales</button>
-
         <select id="selectorModo">
             <option value="paises" selected>Solo países soberanos</option>
             <option value="excepciones">Territorios / excepciones</option>
@@ -78,18 +74,22 @@
         map.createPane('capitalesPane');
         map.getPane('capitalesPane').style.zIndex = 650;
 
+        map.createPane('assistPane');
+        map.getPane('assistPane').style.zIndex = 675;
+
         map.createPane('labelsPane');
         map.getPane('labelsPane').style.zIndex = 700;
 
         let worldData = null;
         let countryInfoMap = new Map();
         let geojsonLayer = null;
-        let assistLayer = null;
         let countryLayers = [];
         let capitalMarkers = [];
         let countryLabels = [];
         let capitalLabels = [];
         let assistMarkers = [];
+        let borderFixLayer = null;
+
         let mostrarNombresPaises = false;
         let mostrarNombresCapitales = false;
         let modoActual = 'paises';
@@ -121,7 +121,7 @@
             "Noruega":[63.5,10.5],"Dinamarca":[56.1,10.0],"Finlandia":[63.7,26.0],"Grecia":[39.2,22.8],"Portugal":[39.6,-8.1],
             "República Checa":[49.8,15.3],"Hungría":[47.2,19.3],"Rumania":[45.8,24.9],"Bulgaria":[42.7,25.3],"Croacia":[45.2,16.4],
             "Irlanda":[53.3,-8.0],"Suiza":[46.8,8.2],"Serbia":[44.15,20.82],"Bosnia y Herzegovina":[44.2,17.8],
-            "Eslovaquia":[48.7,19.6],"Eslovenia":[46.2,14.9],"Albania":[41.1,20.0],"Macedonia del Norte":[41.6,21.7],
+            "Eslovaquia":[48.7,19.6],"Eslovenia":[46.2,14.9],"Albania":[41.1,20.0],"Macedonia del Norte":[41.72,21.72],
             "Montenegro":[42.8,19.3],"Moldavia":[47.2,28.5],"Ucrania":[49.0,31.2],"Bielorrusia":[53.5,27.8],
             "Lituania":[55.2,23.9],"Letonia":[56.9,24.6],"Estonia":[58.7,25.0],"Luxemburgo":[49.8,6.1],"Islandia":[64.9,-18.6],
             "Turquía":[39.0,35.0],"Kosovo":[42.7,20.9],"Andorra":[42.55,1.57],"Mónaco":[43.74,7.42],"San Marino":[43.94,12.46],
@@ -131,19 +131,41 @@
             "Osetia del Sur":[42.2,43.95],"Transnistria":[47.0,29.2],"Artsaj":[39.9,46.8]
         };
 
+        // zonas clicables auxiliares para países muy pequeños o conflictivos
         const MICRO_CLICK_HELPERS = {
-            "Macedonia del Norte": { lat: 41.61, lon: 21.72, radius: 14 },
-            "Serbia": { lat: 44.15, lon: 20.82, radius: 14 },
-            "Kosovo": { lat: 42.67, lon: 21.10, radius: 12 },
-            "Ciudad del Vaticano": { lat: 41.9022, lon: 12.4539, radius: 12 },
-            "Mónaco": { lat: 43.7384, lon: 7.4246, radius: 12 },
-            "San Marino": { lat: 43.9424, lon: 12.4578, radius: 12 },
-            "Liechtenstein": { lat: 47.1410, lon: 9.5209, radius: 12 },
-            "Malta": { lat: 35.8989, lon: 14.5146, radius: 12 },
-            "Andorra": { lat: 42.5063, lon: 1.5218, radius: 12 }
+            "Macedonia del Norte": [
+                { lat: 41.72, lon: 21.72, radius: 18 },
+                { lat: 41.95, lon: 21.45, radius: 16 }
+            ],
+            "Serbia": [
+                { lat: 44.15, lon: 20.82, radius: 18 },
+                { lat: 43.60, lon: 20.80, radius: 16 }
+            ],
+            "Kosovo": [{ lat: 42.67, lon: 21.10, radius: 14 }],
+            "Ciudad del Vaticano": [{ lat: 41.9022, lon: 12.4539, radius: 14 }],
+            "Mónaco": [{ lat: 43.7384, lon: 7.4246, radius: 14 }],
+            "San Marino": [{ lat: 43.9424, lon: 12.4578, radius: 14 }],
+            "Liechtenstein": [{ lat: 47.1410, lon: 9.5209, radius: 14 }],
+            "Malta": [{ lat: 35.8989, lon: 14.5146, radius: 14 }],
+            "Andorra": [{ lat: 42.5063, lon: 1.5218, radius: 14 }]
         };
 
-        const TRADUCCION_IDIOMAS = {
+        
+        const MANUAL_BORDER_FIXES = [
+            {
+                nombre: "Frontera Serbia - Macedonia del Norte",
+                coords: [
+                    [42.32, 21.75],
+                    [42.15, 21.72],
+                    [41.98, 21.68],
+                    [41.83, 21.63],
+                    [41.68, 21.58],
+                    [41.54, 21.52]
+                ]
+            }
+        ];
+
+const TRADUCCION_IDIOMAS = {
             "Spanish":"Español","English":"Inglés","French":"Francés","German":"Alemán","Italian":"Italiano",
             "Portuguese":"Portugués","Dutch":"Neerlandés","Greek":"Griego","Polish":"Polaco","Romanian":"Rumano",
             "Bulgarian":"Búlgaro","Czech":"Checo","Slovak":"Eslovaco","Slovene":"Esloveno","Hungarian":"Húngaro",
@@ -173,23 +195,18 @@
         function estiloNormalPais() {
             return { color: '#3f3f3f', weight: 1.4, fillColor: '#eef2f6', fillOpacity: 0.55 };
         }
-
         function estiloHoverPais() {
             return { color: '#111111', weight: 2.2, fillColor: '#8ec5ff', fillOpacity: 0.78 };
         }
-
         function estiloSeleccionadoPais() {
             return { color: '#000000', weight: 2.8, fillColor: '#4dabf7', fillOpacity: 0.88 };
         }
-
         function estiloNormalCapital() {
             return { pane: 'capitalesPane', radius: 6, color: '#990000', fillColor: '#ff2d2d', fillOpacity: 0.95, weight: 1.5 };
         }
-
         function estiloHoverCapital() {
             return { pane: 'capitalesPane', radius: 7, color: '#7a3d00', fillColor: '#ffb347', fillOpacity: 1, weight: 2 };
         }
-
         function estiloSeleccionadaCapital() {
             return { pane: 'capitalesPane', radius: 7, color: '#0b5d1e', fillColor: '#2ecc71', fillOpacity: 1, weight: 2 };
         }
@@ -319,6 +336,7 @@
                 • Pasa el mouse sobre un país para resaltarlo.<br>
                 • Haz clic en un país para ver datos.<br>
                 • Haz clic en un punto rojo para marcar una capital.<br>
+                • En países muy pequeños o zonas difíciles, usa el área cercana al nombre/centro.<br>
                 • Usa el selector para cambiar entre países y excepciones.
             `;
             return div;
@@ -327,7 +345,7 @@
 
         function limpiarCapasDinamicas() {
             if (geojsonLayer) { map.removeLayer(geojsonLayer); geojsonLayer = null; }
-            if (assistLayer) { map.removeLayer(assistLayer); assistLayer = null; }
+            if (borderFixLayer) { map.removeLayer(borderFixLayer); borderFixLayer = null; }
 
             capitalMarkers.forEach(marker => { if (map.hasLayer(marker)) map.removeLayer(marker); });
             countryLabels.forEach(label => { if (map.hasLayer(label)) map.removeLayer(label); });
@@ -381,48 +399,59 @@
         }
 
         function agregarMarcadoresAsistencia(diccionarioActivo) {
-            Object.entries(MICRO_CLICK_HELPERS).forEach(([nombrePais, cfg]) => {
+            Object.entries(MICRO_CLICK_HELPERS).forEach(([nombrePais, puntos]) => {
                 if (!diccionarioActivo[nombrePais]) return;
 
-                const marker = L.circleMarker([cfg.lat, cfg.lon], {
-                    radius: cfg.radius || 12,
-                    opacity: 0,
-                    fillOpacity: 0
-                }).addTo(map);
+                puntos.forEach((cfg) => {
+                    const marker = L.circleMarker([cfg.lat, cfg.lon], {
+                        pane: 'assistPane',
+                        radius: cfg.radius || 12,
+                        color: '#4dabf7',
+                        weight: 1,
+                        opacity: 0.18,
+                        fillColor: '#4dabf7',
+                        fillOpacity: 0.08
+                    }).addTo(map);
 
-                marker.bindTooltip(`${nombrePais}`, {
-                    permanent: false,
-                    direction: 'top',
-                    className: 'country-label',
-                    offset: [0, -6]
+                    marker.bindTooltip(`${nombrePais}`, {
+                        permanent: false,
+                        direction: 'top',
+                        className: 'country-label assist-label',
+                        offset: [0, -6]
+                    });
+
+                    marker.on('mouseover', function() {
+                        marker.setStyle({ opacity: 0.45, fillOpacity: 0.18 });
+                        marker.openTooltip();
+                    });
+
+                    marker.on('mouseout', function() {
+                        marker.setStyle({ opacity: 0.18, fillOpacity: 0.08 });
+                    });
+
+                    marker.on('click', function(e) {
+                        if (e.originalEvent) L.DomEvent.stop(e.originalEvent);
+
+                        const layer = countryLayers.find(l => l.nombreEs === nombrePais);
+                        if (layer) {
+                            layer.seleccionado = !layer.seleccionado;
+                            layer.setStyle(layer.seleccionado ? estiloSeleccionadoPais() : estiloNormalPais());
+                            if (layer.seleccionado && layer.bringToFront) layer.bringToFront();
+
+                            L.popup({ autoPan: false, closeButton: true, maxWidth: 260 })
+                                .setLatLng([cfg.lat, cfg.lon])
+                                .setContent(crearContenidoPopupPais(nombrePais, layer))
+                                .openOn(map);
+                        } else {
+                            L.popup({ autoPan: false, closeButton: true, maxWidth: 260 })
+                                .setLatLng([cfg.lat, cfg.lon])
+                                .setContent(crearContenidoPopupPais(nombrePais, null))
+                                .openOn(map);
+                        }
+                    });
+
+                    assistMarkers.push(marker);
                 });
-
-                marker.on('mouseover', function() {
-                    marker.openTooltip();
-                });
-
-                marker.on('click', function(e) {
-                    if (e.originalEvent) L.DomEvent.stop(e.originalEvent);
-
-                    const layer = countryLayers.find(l => l.nombreEs === nombrePais);
-                    if (layer) {
-                        layer.seleccionado = !layer.seleccionado;
-                        layer.setStyle(layer.seleccionado ? estiloSeleccionadoPais() : estiloNormalPais());
-                        if (layer.seleccionado && layer.bringToFront) layer.bringToFront();
-
-                        L.popup({ autoPan: false, closeButton: true, maxWidth: 260 })
-                            .setLatLng([cfg.lat, cfg.lon])
-                            .setContent(crearContenidoPopupPais(nombrePais, layer))
-                            .openOn(map);
-                    } else {
-                        L.popup({ autoPan: false, closeButton: true, maxWidth: 260 })
-                            .setLatLng([cfg.lat, cfg.lon])
-                            .setContent(crearContenidoPopupPais(nombrePais, null))
-                            .openOn(map);
-                    }
-                });
-
-                assistMarkers.push(marker);
             });
         }
 
@@ -471,6 +500,20 @@
             if (mostrarNombresPaises) label.addTo(map);
         }
 
+
+        function agregarLineasDeCorreccion() {
+            borderFixLayer = L.layerGroup().addTo(map);
+
+            MANUAL_BORDER_FIXES.forEach(item => {
+                L.polyline(item.coords, {
+                    color: '#000000',
+                    weight: 1.6,
+                    opacity: 1,
+                    interactive: false
+                }).addTo(borderFixLayer);
+            });
+        }
+
         function renderMapa() {
             limpiarCapasDinamicas();
 
@@ -496,6 +539,7 @@
                 }
             }).addTo(map);
 
+            agregarLineasDeCorreccion();
             agregarMarcadoresAsistencia(diccionarioActivo);
         }
 
