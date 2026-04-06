@@ -88,8 +88,6 @@
         let countryLabels = [];
         let capitalLabels = [];
         let assistMarkers = [];
-        let borderFixLayer = null;
-
         let mostrarNombresPaises = false;
         let mostrarNombresCapitales = false;
         let modoActual = 'paises';
@@ -104,7 +102,7 @@
             "Czech Republic":"República Checa","Czechia":"República Checa","Hungary":"Hungría","Romania":"Rumania",
             "Bulgaria":"Bulgaria","Croatia":"Croacia","Ireland":"Irlanda","Switzerland":"Suiza","Serbia":"Serbia",
             "Bosnia and Herzegovina":"Bosnia y Herzegovina","Slovakia":"Eslovaquia","Slovenia":"Eslovenia","Albania":"Albania",
-            "North Macedonia":"Macedonia del Norte","Montenegro":"Montenegro","Moldova":"Moldavia","Ukraine":"Ucrania",
+            "North Macedonia":"Macedonia del Norte","Macedonia":"Macedonia del Norte","Montenegro":"Montenegro","Moldova":"Moldavia","Ukraine":"Ucrania",
             "Belarus":"Bielorrusia","Lithuania":"Lituania","Latvia":"Letonia","Estonia":"Estonia","Luxembourg":"Luxemburgo",
             "Iceland":"Islandia","Turkey":"Turquía","Türkiye":"Turquía","Kosovo":"Kosovo","Andorra":"Andorra","Monaco":"Mónaco",
             "San Marino":"San Marino","Liechtenstein":"Liechtenstein","Malta":"Malta","Cyprus":"Chipre",
@@ -150,22 +148,7 @@
             "Andorra": [{ lat: 42.5063, lon: 1.5218, radius: 14 }]
         };
 
-        
-        const MANUAL_BORDER_FIXES = [
-            {
-                nombre: "Frontera Serbia - Macedonia del Norte",
-                coords: [
-                    [42.32, 21.75],
-                    [42.15, 21.72],
-                    [41.98, 21.68],
-                    [41.83, 21.63],
-                    [41.68, 21.58],
-                    [41.54, 21.52]
-                ]
-            }
-        ];
-
-const TRADUCCION_IDIOMAS = {
+        const TRADUCCION_IDIOMAS = {
             "Spanish":"Español","English":"Inglés","French":"Francés","German":"Alemán","Italian":"Italiano",
             "Portuguese":"Portugués","Dutch":"Neerlandés","Greek":"Griego","Polish":"Polaco","Romanian":"Rumano",
             "Bulgarian":"Búlgaro","Czech":"Checo","Slovak":"Eslovaco","Slovene":"Esloveno","Hungarian":"Húngaro",
@@ -211,6 +194,32 @@ const TRADUCCION_IDIOMAS = {
             return { pane: 'capitalesPane', radius: 7, color: '#0b5d1e', fillColor: '#2ecc71', fillOpacity: 1, weight: 2 };
         }
 
+
+        const TRADUCCION_MONEDAS = {
+            "Euro": "Euro",
+            "United States dollar": "Dólar estadounidense",
+            "Pound sterling": "Libra esterlina",
+            "Swiss franc": "Franco suizo",
+            "Czech koruna": "Corona checa",
+            "Hungarian forint": "Forinto húngaro",
+            "Polish złoty": "Esloti polaco",
+            "Romanian leu": "Leu rumano",
+            "Bulgarian lev": "Lev búlgaro",
+            "Serbian dinar": "Dinar serbio",
+            "Bosnia and Herzegovina convertible mark": "Marco convertible de Bosnia y Herzegovina",
+            "Albanian lek": "Lek albanés",
+            "Moldovan leu": "Leu moldavo",
+            "Ukrainian hryvnia": "Grivna ucraniana",
+            "Belarusian ruble": "Rublo bielorruso",
+            "Icelandic króna": "Corona islandesa",
+            "Turkish lira": "Lira turca",
+            "Macedonian denar": "Denar macedonio",
+            "Russian ruble": "Rublo ruso",
+            "Norwegian krone": "Corona noruega",
+            "Swedish krona": "Corona sueca",
+            "Danish krone": "Corona danesa"
+        };
+
         function formatearPoblacion(numero) {
             if (typeof numero !== 'number') return 'No disponible';
             return numero.toLocaleString('es-ES');
@@ -225,7 +234,8 @@ const TRADUCCION_IDIOMAS = {
         function obtenerMonedaTexto(currenciesObj) {
             if (!currenciesObj || typeof currenciesObj !== 'object') return 'No disponible';
             const monedas = Object.values(currenciesObj).map(moneda => {
-                const nombre = moneda?.name || '';
+                const nombreOriginal = moneda?.name || '';
+                const nombre = TRADUCCION_MONEDAS[nombreOriginal] || nombreOriginal;
                 const simbolo = moneda?.symbol || '';
                 if (nombre && simbolo) return `${nombre} (${simbolo})`;
                 if (nombre) return nombre;
@@ -345,7 +355,6 @@ const TRADUCCION_IDIOMAS = {
 
         function limpiarCapasDinamicas() {
             if (geojsonLayer) { map.removeLayer(geojsonLayer); geojsonLayer = null; }
-            if (borderFixLayer) { map.removeLayer(borderFixLayer); borderFixLayer = null; }
 
             capitalMarkers.forEach(marker => { if (map.hasLayer(marker)) map.removeLayer(marker); });
             countryLabels.forEach(label => { if (map.hasLayer(label)) map.removeLayer(label); });
@@ -500,20 +509,6 @@ const TRADUCCION_IDIOMAS = {
             if (mostrarNombresPaises) label.addTo(map);
         }
 
-
-        function agregarLineasDeCorreccion() {
-            borderFixLayer = L.layerGroup().addTo(map);
-
-            MANUAL_BORDER_FIXES.forEach(item => {
-                L.polyline(item.coords, {
-                    color: '#000000',
-                    weight: 1.6,
-                    opacity: 1,
-                    interactive: false
-                }).addTo(borderFixLayer);
-            });
-        }
-
         function renderMapa() {
             limpiarCapasDinamicas();
 
@@ -539,7 +534,6 @@ const TRADUCCION_IDIOMAS = {
                 }
             }).addTo(map);
 
-            agregarLineasDeCorreccion();
             agregarMarcadoresAsistencia(diccionarioActivo);
         }
 
