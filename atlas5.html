@@ -84,6 +84,7 @@
         let capitalMarkers = [];
         let countryLabels = [];
         let capitalLabels = [];
+        let helperMarkers = [];
         let mostrarNombresPaises = false;
         let mostrarNombresCapitales = false;
         let modoActual = 'paises';
@@ -159,6 +160,15 @@
             return nombrePaisEnEspanol(getFeatureName(feature));
         }
 
+        function extractKosovoFeature(data) {
+            if (!data) return null;
+            if (data.type === 'Feature') return data;
+            if (data.type === 'FeatureCollection' && Array.isArray(data.features) && data.features.length) {
+                return data.features[0];
+            }
+            return null;
+        }
+
         function mergeAndFixFeatures(sourceFeatures, extraKosovoFeature) {
             const out = [];
             let serbia = null;
@@ -174,6 +184,34 @@
                     out.push(feature);
                 }
             }
+
+            if (!kosovo) kosovo = extractKosovoFeature(extraKosovoFeature);
+
+            if (serbia && kosovo) {
+                let diff = null;
+                try {
+                    diff = turf.difference(turf.featureCollection([serbia, kosovo]));
+                } catch (e) {}
+                if (!diff) {
+                    try {
+                        diff = turf.difference(serbia, kosovo);
+                    } catch (e) {}
+                }
+                if (diff) {
+                    serbia = diff;
+                    serbia.properties = serbia.properties || {};
+                    Object.assign(serbia.properties, { name: 'Serbia', ADMIN: 'Serbia' });
+                }
+            }
+
+            if (serbia) out.push(serbia);
+            if (kosovo) {
+                kosovo.properties = kosovo.properties || {};
+                Object.assign(kosovo.properties, { name: 'Kosovo', ADMIN: 'Kosovo' });
+                out.push(kosovo);
+            }
+            return out;
+        }
 
             if (!kosovo && extraKosovoFeature) kosovo = extraKosovoFeature;
 
@@ -323,10 +361,12 @@
             capitalMarkers.forEach(marker => { if (map.hasLayer(marker)) map.removeLayer(marker); });
             countryLabels.forEach(label => { if (map.hasLayer(label)) map.removeLayer(label); });
             capitalLabels.forEach(label => { if (map.hasLayer(label)) map.removeLayer(label); });
+            helperMarkers.forEach(marker => { if (map.hasLayer(marker)) map.removeLayer(marker); });
             countryLayers = [];
             capitalMarkers = [];
             countryLabels = [];
             capitalLabels = [];
+            helperMarkers = [];
         }
 
         function obtenerDiccionarioActivo() {
@@ -397,6 +437,31 @@
             if (mostrarNombresPaises) label.addTo(map);
         }
 
+        function agregarHelperSerbia(diccionarioActivo) {
+            if (!diccionarioActivo['Serbia']) return;
+            const coords = CENTROS_LABELS['Serbia'] || [44.15, 20.82];
+            const marker = L.circleMarker(coords, {
+                radius: 18,
+                opacity: 0,
+                fillOpacity: 0
+            }).addTo(map);
+
+            marker.on('click', function(e) {
+                if (e.originalEvent) L.DomEvent.stop(e.originalEvent);
+                const layer = countryLayers.find(l => l.nombreEs === 'Serbia');
+                if (!layer) return;
+                layer.seleccionado = !layer.seleccionado;
+                layer.setStyle(layer.seleccionado ? estiloSeleccionadoPais() : estiloNormalPais());
+                if (layer.seleccionado && layer.bringToFront) layer.bringToFront();
+                L.popup({ autoPan: false, closeButton: true, maxWidth: 260 })
+                    .setLatLng(coords)
+                    .setContent(crearContenidoPopupPais('Serbia', layer))
+                    .openOn(map);
+            });
+
+            helperMarkers.push(marker);
+        }
+
         function renderMapa() {
             limpiarCapasDinamicas();
             const diccionarioActivo = obtenerDiccionarioActivo();
@@ -419,6 +484,8 @@
                     registrarPaisLayer(nombreEs, layer, diccionarioActivo);
                 }
             }).addTo(map);
+
+            agregarHelperSerbia(diccionarioActivo);
         }
 
         function cargarGeometriaUnaSolaVez() {
