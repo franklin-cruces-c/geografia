@@ -130,6 +130,16 @@
         map.getPane('labelsPane').style.zIndex = 700;
 
         let worldData = null;
+        let geojsonLayer = null;
+        let countryLayers = [];
+        let capitalMarkers = [];
+        let countryLabels = [];
+        let capitalLabels = [];
+        let mostrarNombresPaises = false;
+        let mostrarNombresCapitales = false;
+        let modoActual = 'paises';
+
+        const WORLD_GEOJSON_URL = 'https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json';
 
         const TRADUCCIONES = {
             "France": "Francia",
@@ -178,10 +188,8 @@
             "Liechtenstein": "Liechtenstein",
             "Malta": "Malta",
             "Cyprus": "Chipre",
-            "Holy See": "Ciudad del Vaticano",
             "Vatican": "Ciudad del Vaticano",
-            "Vatican City": "Ciudad del Vaticano",
-            "Vatican City State": "Ciudad del Vaticano",
+            "Holy See": "Ciudad del Vaticano",
             "Åland": "Åland",
             "Aland": "Åland",
             "Faroe Islands": "Islas Feroe",
@@ -190,7 +198,6 @@
             "Guernsey": "Guernsey",
             "Isle of Man": "Isla de Man",
             "Svalbard": "Svalbard",
-            "Svalbard and Jan Mayen": "Svalbard",
             "Abkhazia": "Abjasia",
             "South Ossetia": "Osetia del Sur",
             "Transnistria": "Transnistria",
@@ -258,59 +265,6 @@
             "Artsaj": [39.9, 46.8]
         };
 
-        const PAISES_MANUALES = {
-            "paises": {
-                "Malta": {
-                    type: "Feature",
-                    properties: { name: "Malta" },
-                    geometry: {
-                        type: "Polygon",
-                        coordinates: [[
-                            [14.180, 35.780],
-                            [14.570, 35.780],
-                            [14.570, 36.080],
-                            [14.180, 36.080],
-                            [14.180, 35.780]
-                        ]]
-                    }
-                },
-                "Chipre": {
-                    type: "Feature",
-                    properties: { name: "Chipre" },
-                    geometry: {
-                        type: "Polygon",
-                        coordinates: [[
-                            [32.15, 34.55],
-                            [34.95, 34.55],
-                            [34.95, 35.75],
-                            [32.15, 35.75],
-                            [32.15, 34.55]
-                        ]]
-                    }
-                }
-            },
-            "excepciones": {}
-        };
-
-        function obtenerNombreOriginalFeature(feature) {
-            const p = feature.properties || {};
-            return (
-                p.name ||
-                p.NAME ||
-                p.ADMIN ||
-                p.admin ||
-                p.NAME_EN ||
-                p.name_en ||
-                p.sovereignt ||
-                p.SOVEREIGNT ||
-                p.brk_name ||
-                p.BRK_NAME ||
-                p.formal_en ||
-                p.FORMAL_EN ||
-                ""
-            );
-        }
-
         function nombrePaisEnEspanol(nombreOriginal) {
             return TRADUCCIONES[nombreOriginal] || nombreOriginal;
         }
@@ -321,7 +275,7 @@
             }
 
             const info = diccionarioActivo[nombreEs];
-            if (info && typeof info.lat === 'number' && typeof info.lon === 'number') {
+            if (info) {
                 return [info.lat, info.lon];
             }
 
@@ -350,7 +304,7 @@
         function estiloSeleccionadoPais() {
             return {
                 color: '#000000',
-                weight: 2.6,
+                weight: 2.8,
                 fillColor: '#4dabf7',
                 fillOpacity: 0.88
             };
@@ -403,25 +357,10 @@
         };
         infoBox.addTo(map);
 
-        let geojsonLayer = null;
-        let manualLayer = null;
-        let countryLayers = [];
-        let capitalMarkers = [];
-        let countryLabels = [];
-        let capitalLabels = [];
-        let mostrarNombresPaises = false;
-        let mostrarNombresCapitales = false;
-        let modoActual = 'paises';
-
         function limpiarCapasDinamicas() {
             if (geojsonLayer) {
                 map.removeLayer(geojsonLayer);
                 geojsonLayer = null;
-            }
-
-            if (manualLayer) {
-                map.removeLayer(manualLayer);
-                manualLayer = null;
             }
 
             capitalMarkers.forEach(marker => {
@@ -448,76 +387,13 @@
                 : window.DICCIONARIO_PAISES;
         }
 
-        function registrarPaisLayer(nombreEs, layer, diccionarioActivo) {
-            layer.nombreEs = nombreEs;
-            layer.seleccionado = false;
-            layer.setStyle(estiloNormalPais());
-
-            layer.on('mouseover', function() {
-                if (!layer.seleccionado) {
-                    layer.setStyle(estiloHoverPais());
-                }
-            });
-
-            layer.on('mouseout', function() {
-                if (!layer.seleccionado) {
-                    layer.setStyle(estiloNormalPais());
-                }
-            });
-
-            layer.on('click', function(e) {
-                if (e.originalEvent) {
-                    L.DomEvent.stop(e.originalEvent);
-                }
-
-                layer.seleccionado = !layer.seleccionado;
-
-                if (layer.seleccionado) {
-                    layer.setStyle(estiloSeleccionadoPais());
-                } else {
-                    layer.setStyle(estiloNormalPais());
-                }
-
-                L.popup({
-                    autoPan: false,
-                    closeButton: true
-                })
-                .setLatLng(e.latlng)
-                .setContent(`<b>${nombreEs}</b>`)
-                .openOn(map);
-            });
-
-            countryLayers.push(layer);
-
-            const posicionLabel = obtenerPosicionLabel(nombreEs, diccionarioActivo, layer);
-
-            const label = L.marker(posicionLabel, {
-                pane: 'labelsPane',
-                interactive: false,
-                icon: L.divIcon({
-                    className: 'country-label',
-                    html: nombreEs,
-                    iconSize: null
-                })
-            });
-
-            countryLabels.push(label);
-
-            if (mostrarNombresPaises) {
-                label.addTo(map);
-            }
-        }
-
         function agregarCapitales(diccionarioActivo) {
             Object.entries(diccionarioActivo).forEach(([nombrePais, info]) => {
                 const marcador = L.circleMarker([info.lat, info.lon], estiloNormalCapital()).addTo(map);
 
                 marcador.capitalSeleccionada = false;
 
-                marcador.bindPopup(`
-                    <b>${info.capital}</b><br>
-                    ${nombrePais}
-                `, {
+                marcador.bindPopup(`<b>${info.capital}</b><br>${nombrePais}`, {
                     autoPan: false
                 });
 
@@ -539,13 +415,7 @@
                     }
 
                     this.capitalSeleccionada = !this.capitalSeleccionada;
-
-                    if (this.capitalSeleccionada) {
-                        this.setStyle(estiloSeleccionadaCapital());
-                    } else {
-                        this.setStyle(estiloNormalCapital());
-                    }
-
+                    this.setStyle(this.capitalSeleccionada ? estiloSeleccionadaCapital() : estiloNormalCapital());
                     this.openPopup();
                 });
 
@@ -569,36 +439,62 @@
             });
         }
 
-        function crearHandlerPais(diccionarioActivo) {
-            return function(feature, layer) {
-                const nombreOriginal = obtenerNombreOriginalFeature(feature);
-                const nombreEs = nombrePaisEnEspanol(nombreOriginal);
+        function registrarPaisLayer(nombreEs, layer, diccionarioActivo) {
+            layer.nombreEs = nombreEs;
+            layer.seleccionado = false;
+            layer.setStyle(estiloNormalPais());
 
-                if (!nombreEs) return;
-                registrarPaisLayer(nombreEs, layer, diccionarioActivo);
-            };
-        }
-
-        function agregarPaisesManuales(diccionarioActivo) {
-            const paisesManualModo = PAISES_MANUALES[modoActual] || {};
-            const features = Object.values(paisesManualModo);
-
-            if (!features.length) return;
-
-            manualLayer = L.geoJSON(
-                {
-                    type: "FeatureCollection",
-                    features: features
-                },
-                {
-                    style: estiloNormalPais,
-                    onEachFeature: function(feature, layer) {
-                        const nombreOriginal = obtenerNombreOriginalFeature(feature);
-                        const nombreEs = nombrePaisEnEspanol(nombreOriginal);
-                        registrarPaisLayer(nombreEs, layer, diccionarioActivo);
-                    }
+            layer.on('mouseover', function() {
+                if (!layer.seleccionado) {
+                    layer.setStyle(estiloHoverPais());
                 }
-            ).addTo(map);
+            });
+
+            layer.on('mouseout', function() {
+                if (!layer.seleccionado) {
+                    layer.setStyle(estiloNormalPais());
+                }
+            });
+
+            layer.on('click', function(e) {
+                if (e.originalEvent) {
+                    L.DomEvent.stop(e.originalEvent);
+                }
+
+                layer.seleccionado = !layer.seleccionado;
+                layer.setStyle(layer.seleccionado ? estiloSeleccionadoPais() : estiloNormalPais());
+
+                if (layer.seleccionado && layer.bringToFront) {
+                    layer.bringToFront();
+                }
+
+                L.popup({
+                    autoPan: false,
+                    closeButton: true
+                })
+                .setLatLng(e.latlng)
+                .setContent(`<b>${nombreEs}</b>`)
+                .openOn(map);
+            });
+
+            countryLayers.push(layer);
+
+            const posicionLabel = obtenerPosicionLabel(nombreEs, diccionarioActivo, layer);
+            const label = L.marker(posicionLabel, {
+                pane: 'labelsPane',
+                interactive: false,
+                icon: L.divIcon({
+                    className: 'country-label',
+                    html: nombreEs,
+                    iconSize: null
+                })
+            });
+
+            countryLabels.push(label);
+
+            if (mostrarNombresPaises) {
+                label.addTo(map);
+            }
         }
 
         function renderMapa() {
@@ -606,39 +502,37 @@
 
             const diccionarioActivo = obtenerDiccionarioActivo();
             const nombresValidos = new Set(Object.keys(diccionarioActivo));
-            const nombresManuales = new Set(Object.keys(PAISES_MANUALES[modoActual] || {}));
 
             agregarCapitales(diccionarioActivo);
 
-            if (worldData) {
-                geojsonLayer = L.geoJSON(worldData, {
-                    filter: function(feature) {
-                        const nombreOriginal = obtenerNombreOriginalFeature(feature);
-                        const nombreEs = nombrePaisEnEspanol(nombreOriginal);
+            if (!worldData) return;
 
-                        if (!nombreEs) return false;
-                        if (nombresManuales.has(nombreEs)) return false;
+            geojsonLayer = L.geoJSON(worldData, {
+                filter: function(feature) {
+                    const nombreOriginal = (feature.properties && feature.properties.name) ? feature.properties.name : "";
+                    const nombreEs = nombrePaisEnEspanol(nombreOriginal);
+                    return nombresValidos.has(nombreEs);
+                },
+                style: estiloNormalPais,
+                onEachFeature: function(feature, layer) {
+                    const nombreOriginal = (feature.properties && feature.properties.name) ? feature.properties.name : "";
+                    const nombreEs = nombrePaisEnEspanol(nombreOriginal);
 
-                        return nombresValidos.has(nombreEs);
-                    },
-                    style: estiloNormalPais,
-                    onEachFeature: crearHandlerPais(diccionarioActivo)
-                }).addTo(map);
-            }
-
-            agregarPaisesManuales(diccionarioActivo);
+                    if (!nombreEs || !nombresValidos.has(nombreEs)) return;
+                    registrarPaisLayer(nombreEs, layer, diccionarioActivo);
+                }
+            }).addTo(map);
         }
 
         function cargarMundoUnaSolaVez() {
-            fetch('world.geojson')
+            fetch(WORLD_GEOJSON_URL)
                 .then(response => response.json())
                 .then(data => {
                     worldData = data;
                     renderMapa();
                 })
                 .catch(error => {
-                    console.error('Error cargando world.geojson:', error);
-                    renderMapa();
+                    console.error('Error cargando GeoJSON mundial:', error);
                 });
         }
 
