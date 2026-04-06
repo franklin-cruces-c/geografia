@@ -21,12 +21,10 @@
         #controls button:hover { background: #1d56b3; }
         #controls select { border: 1px solid #ccc; background: white; }
         #map { width: 100%; height: 650px; }
-
         .info-box {
             background: white; padding: 10px 12px; border-radius: 6px;
             box-shadow: 0 0 12px rgba(0,0,0,0.2); line-height: 1.4;
         }
-
         .country-label, .capital-label {
             background: transparent; border: none; padding: 0; font-size: 12px;
             font-weight: bold; white-space: nowrap; text-shadow: 1px 1px 2px white, 0 0 3px white;
@@ -35,7 +33,6 @@
         .capital-label { color: #8a0000; }
         .leaflet-div-icon { background: transparent !important; border: none !important; }
         .leaflet-popup-content { font-size: 14px; }
-
         .popup-pais { min-width: 220px; }
         .popup-titulo { font-size: 16px; font-weight: bold; margin-bottom: 6px; color: #111; }
         .popup-bandera-wrap { margin: 6px 0 10px 0; }
@@ -72,25 +69,25 @@
 
         map.createPane('capitalesPane');
         map.getPane('capitalesPane').style.zIndex = 650;
-
         map.createPane('labelsPane');
         map.getPane('labelsPane').style.zIndex = 700;
 
         let worldData = null;
         let kosovoData = null;
+        let serbiaData = null;
         let countryInfoMap = new Map();
         let geojsonLayer = null;
         let countryLayers = [];
         let capitalMarkers = [];
         let countryLabels = [];
         let capitalLabels = [];
-        let helperMarkers = [];
         let mostrarNombresPaises = false;
         let mostrarNombresCapitales = false;
         let modoActual = 'paises';
 
         const WORLD_URL = 'https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson';
         const KOSOVO_URL = 'https://raw.githubusercontent.com/sdimunzio/countries-geojson/master/kosovo.json';
+        const SERBIA_URL = 'https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/SRB/ADM0/geoBoundaries-SRB-ADM0_simplified.geojson';
         const COUNTRY_INFO_URL = 'https://restcountries.com/v3.1/all?fields=name,flags,population,languages,currencies,capital';
 
         const TRADUCCIONES = {
@@ -123,9 +120,7 @@
             "Ciudad del Vaticano":[41.9022,12.4539],"Liechtenstein":[47.15,9.55],"Malta":[35.94,14.38],"Chipre":[35.10,33.25]
         };
 
-        const CAPITAL_OFFSETS = {
-            "Ciudad del Vaticano": { lat: 41.9046, lon: 12.4465 }
-        };
+        const CAPITAL_OFFSETS = { "Ciudad del Vaticano": { lat: 41.9046, lon: 12.4465 } };
 
         const TRADUCCION_IDIOMAS = {
             "Spanish":"Español","English":"Inglés","French":"Francés","German":"Alemán","Italian":"Italiano",
@@ -155,86 +150,31 @@
         }
 
         function nombrePaisEnEspanol(nombreOriginal) { return TRADUCCIONES[nombreOriginal] || nombreOriginal; }
+        function featureToCountryEs(feature) { return nombrePaisEnEspanol(getFeatureName(feature)); }
 
-        function featureToCountryEs(feature) {
-            return nombrePaisEnEspanol(getFeatureName(feature));
-        }
-
-        function extractKosovoFeature(data) {
-            if (!data) return null;
-            if (data.type === 'Feature') return data;
-            if (data.type === 'FeatureCollection' && Array.isArray(data.features) && data.features.length) {
-                return data.features[0];
+        function normalizeExternalFeature(feature, countryName) {
+            if (!feature) return null;
+            if (feature.type === 'FeatureCollection' && Array.isArray(feature.features) && feature.features.length) {
+                feature = feature.features[0];
             }
-            return null;
+            if (!feature || feature.type !== 'Feature') return null;
+            feature.properties = feature.properties || {};
+            feature.properties.name = countryName;
+            feature.properties.ADMIN = countryName;
+            return feature;
         }
 
-        function mergeAndFixFeatures(sourceFeatures, extraKosovoFeature) {
+        function buildFeatureCollection() {
+            const worldFeatures = Array.isArray(worldData?.features) ? worldData.features : [];
             const out = [];
-            let serbia = null;
-            let kosovo = null;
-
-            for (const feature of sourceFeatures) {
+            for (const feature of worldFeatures) {
                 const nombreEs = featureToCountryEs(feature);
-                if (nombreEs === 'Serbia') {
-                    serbia = feature;
-                } else if (nombreEs === 'Kosovo') {
-                    kosovo = feature;
-                } else {
-                    out.push(feature);
-                }
+                if (nombreEs === 'Serbia' || nombreEs === 'Kosovo') continue;
+                out.push(feature);
             }
-
-            if (!kosovo) kosovo = extractKosovoFeature(extraKosovoFeature);
-
-            if (serbia && kosovo) {
-                let diff = null;
-                try {
-                    diff = turf.difference(turf.featureCollection([serbia, kosovo]));
-                } catch (e) {}
-                if (!diff) {
-                    try {
-                        diff = turf.difference(serbia, kosovo);
-                    } catch (e) {}
-                }
-                if (diff) {
-                    serbia = diff;
-                    serbia.properties = serbia.properties || {};
-                    Object.assign(serbia.properties, { name: 'Serbia', ADMIN: 'Serbia' });
-                }
-            }
-
-            if (serbia) out.push(serbia);
-            if (kosovo) {
-                kosovo.properties = kosovo.properties || {};
-                Object.assign(kosovo.properties, { name: 'Kosovo', ADMIN: 'Kosovo' });
-                out.push(kosovo);
-            }
-            return out;
-        }
-
-            if (!kosovo && extraKosovoFeature) kosovo = extraKosovoFeature;
-
-            if (serbia && kosovo) {
-                try {
-                    const diff = turf.difference(serbia, kosovo);
-                    if (diff) {
-                        serbia = diff;
-                        serbia.properties = serbia.properties || {};
-                        Object.assign(serbia.properties, { name: 'Serbia', ADMIN: 'Serbia' });
-                    }
-                } catch (e) {}
-            }
-
-            if (serbia) out.push(serbia);
-            if (kosovo) {
-                kosovo.properties = kosovo.properties || {};
-                if (!getFeatureName(kosovo)) {
-                    Object.assign(kosovo.properties, { name: 'Kosovo', ADMIN: 'Kosovo' });
-                }
-                out.push(kosovo);
-            }
-            return out;
+            if (serbiaData) out.push(serbiaData);
+            if (kosovoData) out.push(kosovoData);
+            return { type: 'FeatureCollection', features: out };
         }
 
         function obtenerPosicionLabel(nombreEs, diccionarioActivo, layer) {
@@ -252,17 +192,12 @@
         function estiloHoverCapital() { return { pane: 'capitalesPane', radius: 7, color: '#7a3d00', fillColor: '#ffb347', fillOpacity: 1, weight: 2 }; }
         function estiloSeleccionadaCapital() { return { pane: 'capitalesPane', radius: 7, color: '#0b5d1e', fillColor: '#2ecc71', fillOpacity: 1, weight: 2 }; }
 
-        function formatearPoblacion(numero) {
-            if (typeof numero !== 'number') return 'No disponible';
-            return numero.toLocaleString('es-ES');
-        }
-
+        function formatearPoblacion(numero) { return typeof numero === 'number' ? numero.toLocaleString('es-ES') : 'No disponible'; }
         function obtenerIdiomasTexto(languagesObj) {
             if (!languagesObj || typeof languagesObj !== 'object') return 'No disponible';
             const idiomas = Object.values(languagesObj).map(lang => TRADUCCION_IDIOMAS[lang] || lang).filter(Boolean);
             return idiomas.length ? idiomas.join(', ') : 'No disponible';
         }
-
         function obtenerMonedaTexto(currenciesObj) {
             if (!currenciesObj || typeof currenciesObj !== 'object') return 'No disponible';
             const monedas = Object.values(currenciesObj).map(moneda => {
@@ -275,31 +210,24 @@
             }).filter(Boolean);
             return monedas.length ? monedas.join(', ') : 'No disponible';
         }
-
         function obtenerCapitalTexto(capitalArray) {
             if (!capitalArray) return 'No disponible';
-            if (Array.isArray(capitalArray) && capitalArray.length) return capitalArray.join(', ');
-            return 'No disponible';
+            return Array.isArray(capitalArray) && capitalArray.length ? capitalArray.join(', ') : 'No disponible';
         }
 
         function registrarAliasCountryInfo(alias, info) { if (alias) countryInfoMap.set(alias, info); }
-
         function construirMapaCountryInfo(data) {
             countryInfoMap.clear();
             data.forEach(country => {
                 const info = {
-                    nombreComun: country?.name?.common || '',
-                    nombreOficial: country?.name?.official || '',
                     bandera: country?.flags?.svg || country?.flags?.png || '',
                     poblacion: country?.population ?? null,
                     idiomas: country?.languages || {},
                     monedas: country?.currencies || {},
                     capital: country?.capital || []
                 };
-
                 registrarAliasCountryInfo(country?.name?.common, info);
                 registrarAliasCountryInfo(country?.name?.official, info);
-
                 [
                     ['Czechia','República Checa'],['Bosnia and Herzegovina','Bosnia y Herzegovina'],
                     ['North Macedonia','Macedonia del Norte'],['Macedonia','Macedonia del Norte'],
@@ -312,31 +240,25 @@
                         registrarAliasCountryInfo(localName, info);
                     }
                 });
-
                 registrarAliasCountryInfo(nombrePaisEnEspanol(country?.name?.common || ''), info);
                 registrarAliasCountryInfo(nombrePaisEnEspanol(country?.name?.official || ''), info);
             });
         }
 
         function obtenerInfoPais(nombreEs) { return countryInfoMap.get(nombreEs) || null; }
-
         function calcularAreaKm2(layer) {
             try { return Math.round(turf.area(layer.toGeoJSON()) / 1000000); }
             catch (e) { return null; }
         }
-
         function crearContenidoPopupPais(nombreEs, layer = null) {
             const info = obtenerInfoPais(nombreEs);
             const area = layer ? calcularAreaKm2(layer) : null;
-
             if (!info) {
                 return `<div class="popup-pais"><div class="popup-titulo">${nombreEs}</div>
                     <div class="popup-linea">No hay datos adicionales disponibles</div>
                     <div class="popup-linea"><b>Área:</b> ${area ? area.toLocaleString('es-ES') + ' km²' : 'No disponible'}</div></div>`;
             }
-
             const banderaHtml = info.bandera ? `<div class="popup-bandera-wrap"><img src="${info.bandera}" alt="Bandera de ${nombreEs}" class="popup-bandera"></div>` : '';
-
             return `<div class="popup-pais">
                 <div class="popup-titulo">${nombreEs}</div>
                 ${banderaHtml}
@@ -361,12 +283,10 @@
             capitalMarkers.forEach(marker => { if (map.hasLayer(marker)) map.removeLayer(marker); });
             countryLabels.forEach(label => { if (map.hasLayer(label)) map.removeLayer(label); });
             capitalLabels.forEach(label => { if (map.hasLayer(label)) map.removeLayer(label); });
-            helperMarkers.forEach(marker => { if (map.hasLayer(marker)) map.removeLayer(marker); });
             countryLayers = [];
             capitalMarkers = [];
             countryLabels = [];
             capitalLabels = [];
-            helperMarkers = [];
         }
 
         function obtenerDiccionarioActivo() {
@@ -379,7 +299,6 @@
                 const marcador = L.circleMarker([coords.lat, coords.lon], estiloNormalCapital()).addTo(map);
                 marcador.capitalSeleccionada = false;
                 marcador.bindPopup(`<b>${info.capital}</b><br>${nombrePais}`, { autoPan: false });
-
                 marcador.on('mouseover', function() { if (!this.capitalSeleccionada) this.setStyle(estiloHoverCapital()); });
                 marcador.on('mouseout', function() { if (!this.capitalSeleccionada) this.setStyle(estiloNormalCapital()); });
                 marcador.on('click', function(e) {
@@ -388,7 +307,6 @@
                     this.setStyle(this.capitalSeleccionada ? estiloSeleccionadaCapital() : estiloNormalCapital());
                     this.openPopup();
                 });
-
                 capitalMarkers.push(marcador);
 
                 const capitalLabel = L.marker([coords.lat, coords.lon], {
@@ -404,28 +322,19 @@
             layer.nombreEs = nombreEs;
             layer.seleccionado = false;
             layer.setStyle(estiloNormalPais());
-
-            layer.on('mouseover', function() {
-                if (!layer.seleccionado) layer.setStyle(estiloHoverPais());
-            });
-
-            layer.on('mouseout', function() {
-                if (!layer.seleccionado) layer.setStyle(estiloNormalPais());
-            });
-
+            layer.on('mouseover', function() { if (!layer.seleccionado) layer.setStyle(estiloHoverPais()); });
+            layer.on('mouseout', function() { if (!layer.seleccionado) layer.setStyle(estiloNormalPais()); });
             layer.on('click', function(e) {
                 if (e.originalEvent) L.DomEvent.stop(e.originalEvent);
                 const centro = obtenerPosicionLabel(nombreEs, diccionarioActivo, layer);
                 layer.seleccionado = !layer.seleccionado;
                 layer.setStyle(layer.seleccionado ? estiloSeleccionadoPais() : estiloNormalPais());
                 if (layer.seleccionado && layer.bringToFront) layer.bringToFront();
-
                 L.popup({ autoPan: false, closeButton: true, maxWidth: 260 })
                     .setLatLng(centro)
                     .setContent(crearContenidoPopupPais(nombreEs, layer))
                     .openOn(map);
             });
-
             countryLayers.push(layer);
 
             const posicionLabel = obtenerPosicionLabel(nombreEs, diccionarioActivo, layer);
@@ -437,31 +346,6 @@
             if (mostrarNombresPaises) label.addTo(map);
         }
 
-        function agregarHelperSerbia(diccionarioActivo) {
-            if (!diccionarioActivo['Serbia']) return;
-            const coords = CENTROS_LABELS['Serbia'] || [44.15, 20.82];
-            const marker = L.circleMarker(coords, {
-                radius: 18,
-                opacity: 0,
-                fillOpacity: 0
-            }).addTo(map);
-
-            marker.on('click', function(e) {
-                if (e.originalEvent) L.DomEvent.stop(e.originalEvent);
-                const layer = countryLayers.find(l => l.nombreEs === 'Serbia');
-                if (!layer) return;
-                layer.seleccionado = !layer.seleccionado;
-                layer.setStyle(layer.seleccionado ? estiloSeleccionadoPais() : estiloNormalPais());
-                if (layer.seleccionado && layer.bringToFront) layer.bringToFront();
-                L.popup({ autoPan: false, closeButton: true, maxWidth: 260 })
-                    .setLatLng(coords)
-                    .setContent(crearContenidoPopupPais('Serbia', layer))
-                    .openOn(map);
-            });
-
-            helperMarkers.push(marker);
-        }
-
         function renderMapa() {
             limpiarCapasDinamicas();
             const diccionarioActivo = obtenerDiccionarioActivo();
@@ -469,10 +353,9 @@
             agregarCapitales(diccionarioActivo);
             if (!worldData) return;
 
-            const sourceFeatures = Array.isArray(worldData.features) ? worldData.features : [];
-            const fixedFeatures = mergeAndFixFeatures(sourceFeatures, kosovoData);
+            const featureCollection = buildFeatureCollection();
 
-            geojsonLayer = L.geoJSON({ type: 'FeatureCollection', features: fixedFeatures }, {
+            geojsonLayer = L.geoJSON(featureCollection, {
                 filter: function(feature) {
                     const nombreEs = featureToCountryEs(feature);
                     return nombresValidos.has(nombreEs);
@@ -484,14 +367,13 @@
                     registrarPaisLayer(nombreEs, layer, diccionarioActivo);
                 }
             }).addTo(map);
-
-            agregarHelperSerbia(diccionarioActivo);
         }
 
         function cargarGeometriaUnaSolaVez() {
             return Promise.all([
                 fetch(WORLD_URL).then(r => r.json()).then(d => { worldData = d; }),
-                fetch(KOSOVO_URL).then(r => r.json()).then(d => { kosovoData = d; }).catch(() => { kosovoData = null; })
+                fetch(KOSOVO_URL).then(r => r.json()).then(d => { kosovoData = normalizeExternalFeature(d, 'Kosovo'); }).catch(() => { kosovoData = null; }),
+                fetch(SERBIA_URL).then(r => r.json()).then(d => { serbiaData = normalizeExternalFeature(d, 'Serbia'); }).catch(() => { serbiaData = null; })
             ]).catch(error => console.error('Error cargando geometría:', error));
         }
 
