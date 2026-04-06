@@ -77,6 +77,7 @@
         map.getPane('labelsPane').style.zIndex = 700;
 
         let worldData = null;
+        let kosovoData = null;
         let countryInfoMap = new Map();
         let geojsonLayer = null;
         let countryLayers = [];
@@ -88,6 +89,7 @@
         let modoActual = 'paises';
 
         const WORLD_URL = 'https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson';
+        const KOSOVO_URL = 'https://raw.githubusercontent.com/sdimunzio/countries-geojson/master/kosovo.json';
         const COUNTRY_INFO_URL = 'https://restcountries.com/v3.1/all?fields=name,flags,population,languages,currencies,capital';
 
         const TRADUCCIONES = {
@@ -104,9 +106,7 @@
             "Andorra":"Andorra","Monaco":"Mónaco","San Marino":"San Marino","Liechtenstein":"Liechtenstein",
             "Malta":"Malta","Cyprus":"Chipre","Holy See":"Ciudad del Vaticano","Vatican":"Ciudad del Vaticano",
             "Vatican City":"Ciudad del Vaticano","Vatican City State":"Ciudad del Vaticano","Åland":"Åland","Aland":"Åland",
-            "Faroe Islands":"Islas Feroe","Gibraltar":"Gibraltar","Jersey":"Jersey","Guernsey":"Guernsey","Isle of Man":"Isla de Man",
-            "Svalbard":"Svalbard","Svalbard and Jan Mayen":"Svalbard","Abkhazia":"Abjasia","South Ossetia":"Osetia del Sur",
-            "Transnistria":"Transnistria","Artsakh":"Artsaj","Nagorno-Karabakh":"Artsaj"
+            "Faroe Islands":"Islas Feroe","Gibraltar":"Gibraltar","Jersey":"Jersey","Guernsey":"Guernsey","Isle of Man":"Isla de Man"
         };
 
         const CENTROS_LABELS = {
@@ -150,10 +150,54 @@
 
         function getFeatureName(feature) {
             const p = feature?.properties || {};
-            return p.ADMIN || p.admin || p.NAME || p.name || p.NAME_EN || p.NAME_LONG || p.BRK_NAME || p.SOVEREIGNT || p.gu_a3 || p.adm0_a3 || '';
+            return p.ADMIN || p.admin || p.NAME || p.name || p.NAME_EN || p.NAME_LONG || p.BRK_NAME || p.SOVEREIGNT || '';
         }
 
         function nombrePaisEnEspanol(nombreOriginal) { return TRADUCCIONES[nombreOriginal] || nombreOriginal; }
+
+        function featureToCountryEs(feature) {
+            return nombrePaisEnEspanol(getFeatureName(feature));
+        }
+
+        function mergeAndFixFeatures(sourceFeatures, extraKosovoFeature) {
+            const out = [];
+            let serbia = null;
+            let kosovo = null;
+
+            for (const feature of sourceFeatures) {
+                const nombreEs = featureToCountryEs(feature);
+                if (nombreEs === 'Serbia') {
+                    serbia = feature;
+                } else if (nombreEs === 'Kosovo') {
+                    kosovo = feature;
+                } else {
+                    out.push(feature);
+                }
+            }
+
+            if (!kosovo && extraKosovoFeature) kosovo = extraKosovoFeature;
+
+            if (serbia && kosovo) {
+                try {
+                    const diff = turf.difference(serbia, kosovo);
+                    if (diff) {
+                        serbia = diff;
+                        serbia.properties = serbia.properties || {};
+                        Object.assign(serbia.properties, { name: 'Serbia', ADMIN: 'Serbia' });
+                    }
+                } catch (e) {}
+            }
+
+            if (serbia) out.push(serbia);
+            if (kosovo) {
+                kosovo.properties = kosovo.properties || {};
+                if (!getFeatureName(kosovo)) {
+                    Object.assign(kosovo.properties, { name: 'Kosovo', ADMIN: 'Kosovo' });
+                }
+                out.push(kosovo);
+            }
+            return out;
+        }
 
         function obtenerPosicionLabel(nombreEs, diccionarioActivo, layer) {
             if (CENTROS_LABELS[nombreEs]) return CENTROS_LABELS[nombreEs];
@@ -360,16 +404,17 @@
             agregarCapitales(diccionarioActivo);
             if (!worldData) return;
 
-            geojsonLayer = L.geoJSON(worldData, {
+            const sourceFeatures = Array.isArray(worldData.features) ? worldData.features : [];
+            const fixedFeatures = mergeAndFixFeatures(sourceFeatures, kosovoData);
+
+            geojsonLayer = L.geoJSON({ type: 'FeatureCollection', features: fixedFeatures }, {
                 filter: function(feature) {
-                    const nombreOriginal = getFeatureName(feature);
-                    const nombreEs = nombrePaisEnEspanol(nombreOriginal);
+                    const nombreEs = featureToCountryEs(feature);
                     return nombresValidos.has(nombreEs);
                 },
                 style: estiloNormalPais,
                 onEachFeature: function(feature, layer) {
-                    const nombreOriginal = getFeatureName(feature);
-                    const nombreEs = nombrePaisEnEspanol(nombreOriginal);
+                    const nombreEs = featureToCountryEs(feature);
                     if (!nombreEs || !nombresValidos.has(nombreEs)) return;
                     registrarPaisLayer(nombreEs, layer, diccionarioActivo);
                 }
@@ -377,10 +422,10 @@
         }
 
         function cargarGeometriaUnaSolaVez() {
-            return fetch(WORLD_URL)
-                .then(r => r.json())
-                .then(d => { worldData = d; })
-                .catch(error => console.error('Error cargando geometría:', error));
+            return Promise.all([
+                fetch(WORLD_URL).then(r => r.json()).then(d => { worldData = d; }),
+                fetch(KOSOVO_URL).then(r => r.json()).then(d => { kosovoData = d; }).catch(() => { kosovoData = null; })
+            ]).catch(error => console.error('Error cargando geometría:', error));
         }
 
         function cargarInfoPaisesUnaSolaVez() {
