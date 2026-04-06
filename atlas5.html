@@ -388,10 +388,27 @@
             }).addTo(map);
 
             if (boundaryData) {
-                boundaryLayer = L.geoJSON(boundaryData, {
+                const mergedBoundaryFeatures = Array.isArray(boundaryData.features) ? [...boundaryData.features] : [];
+
+                if (modoActual === 'paises' && kosovoData) {
+                    const kosovoBoundaryFeature =
+                        kosovoData.type === 'Feature'
+                            ? kosovoData
+                            : (kosovoData.type === 'FeatureCollection' && Array.isArray(kosovoData.features) && kosovoData.features.length
+                                ? kosovoData.features[0]
+                                : null);
+
+                    if (kosovoBoundaryFeature) {
+                        mergedBoundaryFeatures.push(kosovoBoundaryFeature);
+                    }
+                }
+
+                const mergedBoundaryData = { type: 'FeatureCollection', features: mergedBoundaryFeatures };
+
+                boundaryLayer = L.geoJSON(mergedBoundaryData, {
                     pane: 'boundaryPane',
                     interactive: false,
-                    style: { color: '#000000', weight: 1.25, opacity: 1 }
+                    style: { color: '#000000', weight: 1.25, opacity: 1, fillOpacity: 0 }
                 }).addTo(map);
             }
         }
