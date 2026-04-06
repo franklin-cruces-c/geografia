@@ -73,8 +73,7 @@
             padding: 0;
             font-size: 12px;
             font-weight: bold;
-            color: #222;
-            box-shadow: none;
+            color: #111;
             text-shadow: 1px 1px 2px white, 0 0 3px white;
             white-space: nowrap;
         }
@@ -86,7 +85,6 @@
             font-size: 12px;
             font-weight: bold;
             color: #8a0000;
-            box-shadow: none;
             text-shadow: 1px 1px 2px white, 0 0 3px white;
             white-space: nowrap;
         }
@@ -294,6 +292,25 @@
             "excepciones": {}
         };
 
+        function obtenerNombreOriginalFeature(feature) {
+            const p = feature.properties || {};
+            return (
+                p.name ||
+                p.NAME ||
+                p.ADMIN ||
+                p.admin ||
+                p.NAME_EN ||
+                p.name_en ||
+                p.sovereignt ||
+                p.SOVEREIGNT ||
+                p.brk_name ||
+                p.BRK_NAME ||
+                p.formal_en ||
+                p.FORMAL_EN ||
+                ""
+            );
+        }
+
         function nombrePaisEnEspanol(nombreOriginal) {
             return TRADUCCIONES[nombreOriginal] || nombreOriginal;
         }
@@ -314,28 +331,28 @@
 
         function estiloNormalPais() {
             return {
-                color: '#4a4a4a',
-                weight: 1.2,
-                fillColor: '#f2f5f9',
-                fillOpacity: 0.45
+                color: '#3f3f3f',
+                weight: 1.4,
+                fillColor: '#eef2f6',
+                fillOpacity: 0.55
             };
         }
 
         function estiloHoverPais() {
             return {
-                color: '#1f1f1f',
-                weight: 2,
+                color: '#111111',
+                weight: 2.2,
                 fillColor: '#8ec5ff',
-                fillOpacity: 0.75
+                fillOpacity: 0.78
             };
         }
 
         function estiloSeleccionadoPais() {
             return {
-                color: '#0d3b66',
-                weight: 2.5,
+                color: '#000000',
+                weight: 2.6,
                 fillColor: '#4dabf7',
-                fillOpacity: 0.85
+                fillOpacity: 0.88
             };
         }
 
@@ -554,13 +571,10 @@
 
         function crearHandlerPais(diccionarioActivo) {
             return function(feature, layer) {
-                const nombreOriginal =
-                    feature.properties.name ||
-                    feature.properties.ADMIN ||
-                    feature.properties.admin ||
-                    "País";
-
+                const nombreOriginal = obtenerNombreOriginalFeature(feature);
                 const nombreEs = nombrePaisEnEspanol(nombreOriginal);
+
+                if (!nombreEs) return;
                 registrarPaisLayer(nombreEs, layer, diccionarioActivo);
             };
         }
@@ -579,7 +593,7 @@
                 {
                     style: estiloNormalPais,
                     onEachFeature: function(feature, layer) {
-                        const nombreOriginal = feature.properties.name || "País";
+                        const nombreOriginal = obtenerNombreOriginalFeature(feature);
                         const nombreEs = nombrePaisEnEspanol(nombreOriginal);
                         registrarPaisLayer(nombreEs, layer, diccionarioActivo);
                     }
@@ -599,17 +613,11 @@
             if (worldData) {
                 geojsonLayer = L.geoJSON(worldData, {
                     filter: function(feature) {
-                        const nombreOriginal =
-                            feature.properties.name ||
-                            feature.properties.ADMIN ||
-                            feature.properties.admin ||
-                            "";
-
+                        const nombreOriginal = obtenerNombreOriginalFeature(feature);
                         const nombreEs = nombrePaisEnEspanol(nombreOriginal);
 
-                        if (nombresManuales.has(nombreEs)) {
-                            return false;
-                        }
+                        if (!nombreEs) return false;
+                        if (nombresManuales.has(nombreEs)) return false;
 
                         return nombresValidos.has(nombreEs);
                     },
