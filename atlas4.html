@@ -98,13 +98,38 @@
             font-size: 14px;
         }
 
+        .popup-pais {
+            min-width: 220px;
+        }
+
+        .popup-titulo {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 6px;
+            color: #111;
+        }
+
+        .popup-bandera-wrap {
+            margin: 6px 0 10px 0;
+        }
+
         .popup-bandera {
-            width: 56px;
+            width: 64px;
             height: auto;
             border: 1px solid #ccc;
-            border-radius: 4px;
+            border-radius: 6px;
             display: block;
-            margin: 6px 0 8px 0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        .popup-linea {
+            margin: 4px 0;
+            line-height: 1.35;
+        }
+
+        .popup-capital {
+            color: #b30000;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -150,9 +175,8 @@
         let mostrarNombresCapitales = false;
         let modoActual = 'paises';
 
-        // Carga única del mundo y de la info de países
         const WORLD_GEOJSON_URL = 'https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json';
-        const COUNTRY_INFO_URL = 'https://restcountries.com/v3.1/all?fields=name,flags,population,languages';
+        const COUNTRY_INFO_URL = 'https://restcountries.com/v3.1/all?fields=name,flags,population,languages,currencies,capital';
 
         const TRADUCCIONES = {
             "France": "Francia",
@@ -282,6 +306,68 @@
             "Artsaj": [39.9, 46.8]
         };
 
+        const TRADUCCION_IDIOMAS = {
+            "Spanish": "Español",
+            "English": "Inglés",
+            "French": "Francés",
+            "German": "Alemán",
+            "Italian": "Italiano",
+            "Portuguese": "Portugués",
+            "Dutch": "Neerlandés",
+            "Greek": "Griego",
+            "Polish": "Polaco",
+            "Romanian": "Rumano",
+            "Bulgarian": "Búlgaro",
+            "Czech": "Checo",
+            "Slovak": "Eslovaco",
+            "Slovene": "Esloveno",
+            "Hungarian": "Húngaro",
+            "Swedish": "Sueco",
+            "Danish": "Danés",
+            "Finnish": "Finés",
+            "Norwegian": "Noruego",
+            "Icelandic": "Islandés",
+            "Irish": "Irlandés",
+            "Maltese": "Maltés",
+            "Latvian": "Letón",
+            "Lithuanian": "Lituano",
+            "Estonian": "Estonio",
+            "Albanian": "Albanés",
+            "Serbian": "Serbio",
+            "Croatian": "Croata",
+            "Bosnian": "Bosnio",
+            "Montenegrin": "Montenegrino",
+            "Macedonian": "Macedonio",
+            "Turkish": "Turco",
+            "Russian": "Ruso",
+            "Ukrainian": "Ucraniano",
+            "Belarusian": "Bielorruso",
+            "Arabic": "Árabe",
+            "Hebrew": "Hebreo",
+            "Luxembourgish": "Luxemburgués",
+            "Catalan": "Catalán",
+            "Basque": "Euskera",
+            "Galician": "Gallego",
+            "Welsh": "Galés",
+            "Scottish Gaelic": "Gaélico escocés",
+            "Manx": "Manés",
+            "Cornish": "Córnico",
+            "Breton": "Bretón",
+            "Sami": "Sami",
+            "Northern Sami": "Sami septentrional",
+            "Faroese": "Feroés",
+            "Moldovan": "Moldavo",
+            "Azerbaijani": "Azerí",
+            "Armenian": "Armenio",
+            "Georgian": "Georgiano",
+            "Kazakh": "Kazajo",
+            "Uzbek": "Uzbeko",
+            "Kyrgyz": "Kirguís",
+            "Tajik": "Tayiko",
+            "Turkmen": "Turcomano",
+            "Persian": "Persa"
+        };
+
         function nombrePaisEnEspanol(nombreOriginal) {
             return TRADUCCIONES[nombreOriginal] || nombreOriginal;
         }
@@ -370,8 +456,37 @@
                 return 'No disponible';
             }
 
-            const idiomas = Object.values(languagesObj).filter(Boolean);
+            const idiomas = Object.values(languagesObj)
+                .map(lang => TRADUCCION_IDIOMAS[lang] || lang)
+                .filter(Boolean);
+
             return idiomas.length ? idiomas.join(', ') : 'No disponible';
+        }
+
+        function obtenerMonedaTexto(currenciesObj) {
+            if (!currenciesObj || typeof currenciesObj !== 'object') {
+                return 'No disponible';
+            }
+
+            const monedas = Object.values(currenciesObj)
+                .map(moneda => {
+                    const nombre = moneda?.name || '';
+                    const simbolo = moneda?.symbol || '';
+                    if (nombre && simbolo) return `${nombre} (${simbolo})`;
+                    if (nombre) return nombre;
+                    return simbolo || '';
+                })
+                .filter(Boolean);
+
+            return monedas.length ? monedas.join(', ') : 'No disponible';
+        }
+
+        function obtenerCapitalTexto(capitalArray) {
+            if (!capitalArray) return 'No disponible';
+            if (Array.isArray(capitalArray) && capitalArray.length) {
+                return capitalArray.join(', ');
+            }
+            return 'No disponible';
         }
 
         function registrarAliasCountryInfo(alias, info) {
@@ -388,7 +503,9 @@
                     nombreOficial: country?.name?.official || '',
                     bandera: country?.flags?.svg || country?.flags?.png || '',
                     poblacion: country?.population ?? null,
-                    idiomas: country?.languages || {}
+                    idiomas: country?.languages || {},
+                    monedas: country?.currencies || {},
+                    capital: country?.capital || []
                 };
 
                 registrarAliasCountryInfo(country?.name?.common, info);
@@ -433,19 +550,30 @@
             const info = obtenerInfoPais(nombreEs);
 
             if (!info) {
-                return `<b>${nombreEs}</b><br>No hay datos adicionales disponibles`;
+                return `
+                    <div class="popup-pais">
+                        <div class="popup-titulo">${nombreEs}</div>
+                        <div class="popup-linea">No hay datos adicionales disponibles</div>
+                    </div>
+                `;
             }
 
             const banderaHtml = info.bandera
-                ? `<img src="${info.bandera}" alt="Bandera de ${nombreEs}" class="popup-bandera">`
+                ? `
+                    <div class="popup-bandera-wrap">
+                        <img src="${info.bandera}" alt="Bandera de ${nombreEs}" class="popup-bandera">
+                    </div>
+                  `
                 : '';
 
             return `
-                <div style="min-width: 180px;">
-                    <b>${nombreEs}</b>
+                <div class="popup-pais">
+                    <div class="popup-titulo">${nombreEs}</div>
                     ${banderaHtml}
-                    <div><b>Idiomas oficiales:</b> ${obtenerIdiomasTexto(info.idiomas)}</div>
-                    <div><b>Población:</b> ${formatearPoblacion(info.poblacion)}</div>
+                    <div class="popup-linea"><b>Capital:</b> <span class="popup-capital">${obtenerCapitalTexto(info.capital)}</span></div>
+                    <div class="popup-linea"><b>Idiomas oficiales:</b> ${obtenerIdiomasTexto(info.idiomas)}</div>
+                    <div class="popup-linea"><b>Población:</b> ${formatearPoblacion(info.poblacion)}</div>
+                    <div class="popup-linea"><b>Moneda:</b> ${obtenerMonedaTexto(info.monedas)}</div>
                 </div>
             `;
         }
